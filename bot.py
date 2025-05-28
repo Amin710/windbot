@@ -2388,6 +2388,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     data = query.data
     user = update.effective_user
     
+    # Log all callback queries for debugging
+    logger.info(f"Callback handler processing: '{data}' from user {user.id}")
+    
     if data == "buy_service":
         # Show subscription options
         await show_subscription_options(update, context)
@@ -2920,11 +2923,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Handle admin back button
     elif data == "admin:back":
         try:
+            logger.info(f"admin:back callback received from user {user.id}")
+            
             # Check if user is admin
             is_admin = await check_admin(user.id)
+            logger.info(f"User {user.id} admin check result: {is_admin}")
+            
             if not is_admin:
+                logger.warning(f"User {user.id} attempted admin:back but is not admin")
                 await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
                 return
+            
+            logger.info(f"Editing message for admin:back - user {user.id}")
             
             # Return to admin panel
             await query.edit_message_text(
@@ -2934,8 +2944,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 reply_markup=get_admin_keyboard(),
                 parse_mode="Markdown"
             )
+            
+            logger.info(f"Successfully returned to admin panel for user {user.id}")
+            
         except Exception as e:
-            logger.error(f"Error in admin:back callback: {e}")
+            logger.error(f"Error in admin:back callback for user {user.id}: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             await query.answer(f"خطا: {str(e)[:100]}", show_alert=True)
 
     # Handle quick TOTP code generation (alert style)
