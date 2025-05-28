@@ -2934,6 +2934,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
                 return
             
+            logger.info(f"Getting admin keyboard...")
+            try:
+                admin_keyboard = get_admin_keyboard()
+                logger.info(f"Admin keyboard created successfully")
+            except Exception as kb_error:
+                logger.error(f"Error creating admin keyboard: {kb_error}")
+                raise kb_error
+            
             logger.info(f"Editing message for admin:back - user {user.id}")
             
             # Return to admin panel
@@ -2941,7 +2949,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"💻 *پنل مدیریت*\n\n"
                 f"به پنل مدیریت بات خوش آمدید.\n"
                 f"لطفا گزینه مورد نظر خود را انتخاب کنید:",
-                reply_markup=get_admin_keyboard(),
+                reply_markup=admin_keyboard,
                 parse_mode="Markdown"
             )
             
