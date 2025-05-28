@@ -1217,6 +1217,18 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await process_seat_edit(update, context)
             return
             
+        # Check if we're expecting card info
+        if context.user_data.get('awaiting_card_info', False):
+            from handlers import admin_cards
+            await admin_cards.process_add_card(update, context)
+            return
+            
+        # Check if we're expecting card edit info
+        if 'edit_card_id' in context.user_data:
+            from handlers import admin_cards
+            await admin_cards.process_edit_card(update, context)
+            return
+            
         # Check if we're expecting a seat input
         if context.user_data.get('awaiting_single_seat', False):
             # Clear the flag immediately
@@ -2858,6 +2870,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Admin: Card management
     elif data == "admin:card" or data == "admin:cards":
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
         if not is_admin:
             await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
             return
@@ -2867,6 +2881,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
     # Card management callbacks
     elif data == "card:add":
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
         if not is_admin:
             await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
             return
@@ -2874,6 +2890,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await admin_cards.add_card_prompt(update, context)
         
     elif data.startswith("card:del:"):
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
         if not is_admin:
             await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
             return
@@ -2886,6 +2904,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.answer("خطا در حذف کارت", show_alert=True)
             
     elif data.startswith("card:edit:"):
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
         if not is_admin:
             await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
             return
@@ -2899,6 +2919,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Handle admin back button
     elif data == "admin:back":
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
         # Return to admin panel
         await query.edit_message_text(
             f"💻 *پنل مدیریت*\n\n"
@@ -2978,6 +3004,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             if ENHANCED_LOGGING:
                 log_exception(e, {"order_id": order_id, "callback_data": data})
             await query.answer("خطا در تولید کد", show_alert=True)
+    
+    # Handle no-operation callback (navigation spacer buttons)
+    elif data == "noop":
+        # Just answer the callback query to acknowledge it, no action needed
+        await query.answer()
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
