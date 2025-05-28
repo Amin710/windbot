@@ -17,14 +17,16 @@ Features:
 
 import csv
 import io
-import os
+import json
 import logging
-import pyotp
-import random
+import os
 import re
+import uuid
+import telegram
 import time
 import base64
-import json
+import pyotp
+import random
 import asyncio
 import traceback
 import sys
@@ -323,35 +325,27 @@ def get_admin_keyboard():
     """Create admin panel keyboard."""
     keyboard = [
         [
+            InlineKeyboardButton("📊 آمار", callback_data="admin:stats"),
+            InlineKeyboardButton("📢 ارسال گروهی", callback_data="admin:broadcast")
+        ],
+        [
+            InlineKeyboardButton("➕ افزودن صندلی", callback_data="admin:addseat"),
+            InlineKeyboardButton("📑 لیست اکانت‌ها", callback_data="admin:listcsv")
+        ],
+        [
+            InlineKeyboardButton("🗂️ مدیریت اکانت‌ها", callback_data="admin:list"),
+            InlineKeyboardButton("💵 تغییر قیمت", callback_data="admin:price")
+        ],
+        [
+            InlineKeyboardButton("🔧 تغییر قیمت یک‌ماهه", callback_data="admin:price1")
+        ],
+        [
             InlineKeyboardButton("💳 مدیریت کارت‌ها", callback_data="admin:cards"),
-            InlineKeyboardButton("💲 تغییر قیمت", callback_data="admin:price")
+            InlineKeyboardButton("📅 CSV گروهی", callback_data="admin:bulkcsv")
         ],
         [
-            InlineKeyboardButton("🇺🇸 تغییر نرخ دلار", callback_data="admin:usd"),
-            InlineKeyboardButton("👔 مدیریت صندلی‌ها", callback_data="admin:seats")
-        ],
-        [
-            InlineKeyboardButton("📨 برودکست پیام", callback_data="admin:broadcast"),
-            InlineKeyboardButton("📊 آمار", callback_data="admin:stats")
-        ],
-        [
-            InlineKeyboardButton("📢 ارسال گروهی", callback_data="admin:broadcast"),
-            InlineKeyboardButton("➕ افزودن صندلی", callback_data="admin:addseat")
-        ],
-        [
-            InlineKeyboardButton("📑 لیست اکانت‌ها", callback_data="admin:listcsv"),
-            InlineKeyboardButton("🗂️ مدیریت اکانت‌ها", callback_data="admin:list")
-        ],
-        [
-            InlineKeyboardButton("💹 آمار UTM", callback_data="admin:utm"),
-            InlineKeyboardButton("🗄️ بکاپ دیتابیس", callback_data="admin:backup")
-        ],
-        [
-            InlineKeyboardButton("غیرفعال‌سازی کارت", callback_data="admin:disable_card"),
-            InlineKeyboardButton("غیرفعال‌سازی کریپتو", callback_data="admin:disable_crypto")
-        ],
-        [
-            InlineKeyboardButton("فعال‌سازی درگاه", callback_data="admin:enable_gateway")
+            InlineKeyboardButton("📉 آمار UTM", callback_data="admin:utm"),
+            InlineKeyboardButton("📃 بکاپ دیتابیس", callback_data="admin:backup")
         ],
         [
             InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")
@@ -2460,9 +2454,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
         admin_action = data.split(":")[1]
         
-        if admin_action == "card":
-            # Change card number
-            return await handle_admin_card(update, context)
+        if admin_action == "cards" or admin_action.startswith("cards|"):
+            # Cards management
+            # Check if pagination parameter is included
+            page = 0
+            if "|" in admin_action:
+                try:
+                    page = int(admin_action.split("|")[1])
+                except (ValueError, IndexError):
+                    page = 0
+            
+            # Show cards list
+            await admin_cards.show_cards_list(update, context, page)
+            return
+            
+        elif admin_action == "card":
+            # Legacy card management - redirect to new system
+            await admin_cards.show_cards_list(update, context)
+            return
             
         elif admin_action == "usd":
             # Change USD rate
@@ -2610,13 +2619,47 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             except Exception as e:
                 logger.error(f"Error updating receipt caption: {e}")
             
-            # Update admin message
-            await query.edit_message_text(f"✅ سفارش #{order_id} تایید شد.")
+            # Update admin message - safely
+            try:
+                # First try to edit message text
+                await query.edit_message_text(f"✅ سفارش #{order_id} تایید شد.")
+            except telegram.error.BadRequest as e:
+                if "There is no text in the message to edit" in str(e):
+                    # If message has no text (e.g. it's a photo), answer callback query instead
+                    await query.answer(f"✅ سفارش #{order_id} تایید شد.", show_alert=True)
+                    
+                    # Try to edit caption if it's a media message
+                    try:
+                        await query.edit_message_caption(f"✅ سفارش #{order_id} تایید شد.")
+                    except Exception:
+                        # If we can't edit caption either, just log it
+                        logger.info(f"Could not edit message or caption for order #{order_id} approval")
+                else:
+                    # For other BadRequest errors, just log and notify
+                    logger.error(f"Error updating admin message on approval: {e}")
+                    await query.answer("خطا در بروزرسانی پیام", show_alert=True)
         else:
             # Show error
-            await query.edit_message_text(
-                f"❌ خطا در تایید سفارش: {result}"
-            )
+            try:
+                # First try to edit message text
+                await query.edit_message_text(
+                    f"❌ خطا در تایید سفارش: {result}"
+                )
+            except telegram.error.BadRequest as e:
+                if "There is no text in the message to edit" in str(e):
+                    # If message has no text (e.g. it's a photo), answer callback query instead
+                    await query.answer(f"❌ خطا در تایید سفارش: {result}", show_alert=True)
+                    
+                    # Try to edit caption if it's a media message
+                    try:
+                        await query.edit_message_caption(f"❌ خطا در تایید سفارش: {result}")
+                    except Exception:
+                        # If we can't edit caption either, just log it
+                        logger.info(f"Could not edit message or caption for order error")
+                else:
+                    # For other BadRequest errors, just log and notify
+                    logger.error(f"Error updating admin message on approval error: {e}")
+                    await query.answer("خطا در بروزرسانی پیام", show_alert=True)
     
     # Handle order rejection
     elif data.startswith("reject:"):
@@ -2678,13 +2721,47 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             except Exception as e:
                 logger.error(f"Error updating receipt caption: {e}")
             
-            # Update admin message
-            await query.edit_message_text(f"❌ سفارش #{order_id} رد شد.")
+            # Update admin message - safely
+            try:
+                # First try to edit message text
+                await query.edit_message_text(f"❌ سفارش #{order_id} رد شد.")
+            except telegram.error.BadRequest as e:
+                if "There is no text in the message to edit" in str(e):
+                    # If message has no text (e.g. it's a photo), answer callback query instead
+                    await query.answer(f"❌ سفارش #{order_id} رد شد.", show_alert=True)
+                    
+                    # Try to edit caption if it's a media message
+                    try:
+                        await query.edit_message_caption(f"❌ سفارش #{order_id} رد شد.")
+                    except Exception:
+                        # If we can't edit caption either, just log it
+                        logger.info(f"Could not edit message or caption for order #{order_id} rejection")
+                else:
+                    # For other BadRequest errors, just log and notify
+                    logger.error(f"Error updating admin message on rejection: {e}")
+                    await query.answer("خطا در بروزرسانی پیام", show_alert=True)
         else:
             # Show error
-            await query.edit_message_text(
-                f"❌ خطا در رد سفارش: {result}"
-            )
+            try:
+                # First try to edit message text
+                await query.edit_message_text(
+                    f"❌ خطا در رد سفارش: {result}"
+                )
+            except telegram.error.BadRequest as e:
+                if "There is no text in the message to edit" in str(e):
+                    # If message has no text (e.g. it's a photo), answer callback query instead
+                    await query.answer(f"❌ خطا در رد سفارش: {result}", show_alert=True)
+                    
+                    # Try to edit caption if it's a media message
+                    try:
+                        await query.edit_message_caption(f"❌ خطا در رد سفارش: {result}")
+                    except Exception:
+                        # If we can't edit caption either, just log it
+                        logger.info(f"Could not edit message or caption for order #{order_id} rejection")
+                else:
+                    # For other BadRequest errors, just log and notify
+                    logger.error(f"Error updating admin message on rejection: {e}")
+                    await query.answer("خطا در بروزرسانی پیام", show_alert=True)
     
     # Handle 2FA code request
     elif data.startswith("2fa:"):
@@ -2746,6 +2823,47 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif action == "info":
             # Show seat info (currently redirects to edit for simplicity)
             await handle_seat_edit_prompt(update, context, seat_id)
+
+    # Admin: Card management
+    elif data == "admin:card" or data == "admin:cards":
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+
+        # Redirect to new card management system
+        await admin_cards.show_cards_list(update, context)
+        
+    # Card management callbacks
+    elif data == "card:add":
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
+        await admin_cards.add_card_prompt(update, context)
+        
+    elif data.startswith("card:del:"):
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
+        try:
+            card_id = int(data.split(":")[2])
+            await admin_cards.delete_card(update, context, card_id)
+        except (ValueError, IndexError) as e:
+            logger.error(f"Invalid card deletion ID format: {e}")
+            await query.answer("خطا در حذف کارت", show_alert=True)
+            
+    elif data.startswith("card:edit:"):
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
+        try:
+            card_id = int(data.split(":")[2])
+            await admin_cards.edit_card_prompt(update, context, card_id)
+        except (ValueError, IndexError) as e:
+            logger.error(f"Invalid card edit ID format: {e}")
+            await query.answer("خطا در ویرایش کارت", show_alert=True)
 
     # Handle admin back button
     elif data == "admin:back":
