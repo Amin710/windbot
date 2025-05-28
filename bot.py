@@ -1906,6 +1906,9 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Check if we're expecting a seat input
     if not context.user_data.get('awaiting_single_seat', False):
         return -1
+        
+    # Clear the flag immediately to prevent issues
+    context.user_data.pop('awaiting_single_seat', None)
     
     try:
         # Parse the input - split into maximum 4 parts (email, password, secret, slots)
@@ -2581,7 +2584,9 @@ def main() -> None:
             ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_seat_edit)],
         },
         fallbacks=[CommandHandler("cancel", lambda u, c: -1)],
-        name="admin_conversation"
+        name="admin_conversation",
+        per_message=True,  # مهم: اضافه کردن این پارامتر برای رفع مشکل
+        per_chat=True       # مهم: اطمینان از تفکیک مکالمات بر اساس چت
     )
     application.add_handler(admin_conv_handler)
     
