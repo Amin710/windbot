@@ -1284,6 +1284,22 @@ async def approve_order(order_id):
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
+                # First check if order exists at all
+                cur.execute(
+                    "SELECT status FROM orders WHERE id = %s",
+                    (order_id,)
+                )
+                order_check = cur.fetchone()
+                
+                if not order_check:
+                    logger.error(f"Order {order_id} not found in database")
+                    return False, "خطا: سفارش یافت نشد"
+                
+                # If order exists but is not in pending status, give specific error
+                if order_check[0] != 'pending':
+                    logger.error(f"Order {order_id} exists but status is '{order_check[0]}', not 'pending'")
+                    return False, f"خطا: سفارش در وضعیت '{order_check[0]}' است، نه 'pending'"
+                
                 # Get order details
                 cur.execute(
                     "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer FROM orders o "
@@ -1364,6 +1380,22 @@ async def reject_order(order_id):
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
+                # First check if order exists at all
+                cur.execute(
+                    "SELECT status FROM orders WHERE id = %s",
+                    (order_id,)
+                )
+                order_check = cur.fetchone()
+                
+                if not order_check:
+                    logger.error(f"Order {order_id} not found in database")
+                    return False, "خطا: سفارش یافت نشد"
+                
+                # If order exists but is not in pending or receipt status, give specific error
+                if order_check[0] not in ('pending', 'receipt'):
+                    logger.error(f"Order {order_id} exists but status is '{order_check[0]}', not 'pending' or 'receipt'")
+                    return False, f"خطا: سفارش در وضعیت '{order_check[0]}' است، نه قابل رد"
+                
                 # Get user's Telegram ID for notification
                 cur.execute(
                     "SELECT u.tg_id FROM users u JOIN orders o ON u.id = o.user_id "
