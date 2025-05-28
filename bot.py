@@ -32,6 +32,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional, Union, Tuple, List, Any
 
+# Import handlers modules
+from handlers import referral
+from handlers import admin_cards
+from handlers import card_manager
+
 from telegram.error import TelegramError, Forbidden, BadRequest, RetryAfter
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -318,23 +323,24 @@ def get_admin_keyboard():
     """Create admin panel keyboard."""
     keyboard = [
         [
-            InlineKeyboardButton("📊 آمار", callback_data="admin:stats"),
-            InlineKeyboardButton("📢 ارسال گروهی", callback_data="admin:broadcast")
+            InlineKeyboardButton("💳 مدیریت کارت‌ها", callback_data="admin:cards"),
+            InlineKeyboardButton("💲 تغییر قیمت", callback_data="admin:price")
         ],
         [
-            InlineKeyboardButton("➕ افزودن صندلی", callback_data="admin:addseat"),
-            InlineKeyboardButton("📑 لیست اکانت‌ها", callback_data="admin:listcsv")
+            InlineKeyboardButton("🇺🇸 تغییر نرخ دلار", callback_data="admin:usd"),
+            InlineKeyboardButton("👔 مدیریت صندلی‌ها", callback_data="admin:seats")
         ],
         [
-            InlineKeyboardButton("🗂️ مدیریت اکانت‌ها", callback_data="admin:list"),
-            InlineKeyboardButton("💵 تغییر قیمت", callback_data="admin:price")
+            InlineKeyboardButton("📨 برودکست پیام", callback_data="admin:broadcast"),
+            InlineKeyboardButton("📊 آمار", callback_data="admin:stats")
         ],
         [
-            InlineKeyboardButton("🔧 تغییر قیمت یک‌ماهه", callback_data="admin:price1")
+            InlineKeyboardButton("📢 ارسال گروهی", callback_data="admin:broadcast"),
+            InlineKeyboardButton("➕ افزودن صندلی", callback_data="admin:addseat")
         ],
         [
-            InlineKeyboardButton("💰 تغییر شماره کارت", callback_data="admin:card"),
-            InlineKeyboardButton("📥 CSV گروهی", callback_data="admin:bulkcsv")
+            InlineKeyboardButton("📑 لیست اکانت‌ها", callback_data="admin:listcsv"),
+            InlineKeyboardButton("🗂️ مدیریت اکانت‌ها", callback_data="admin:list")
         ],
         [
             InlineKeyboardButton("💹 آمار UTM", callback_data="admin:utm"),
@@ -880,11 +886,13 @@ async def show_subscription_options(update: Update, context: ContextTypes.DEFAUL
 
 async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show purchase information and payment details."""
-    # Get card number from settings or environment variable
-    card_number = db.get_setting('card_number', CARD_NUMBER)
+    # Get a random active card using the new card management system
+    card_title, card_number = card_manager.get_random_payment_card()
+    
     if not card_number:
-        card_number = "شماره کارت در تنظیمات سیستم ثبت نشده است"
-        logger.error("Card number not configured in settings or environment variables")
+        card_title = "کارت بانکی"
+        card_number = "شماره کارت در سیستم ثبت نشده است"
+        logger.error("No active cards found in database and no fallback card configured")
     
     # Get one-month price from settings
     amount = int(db.get_setting('one_month_price', '70000'))
@@ -932,12 +940,13 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data['pending_order_id'] = order_id
     
     # Send payment instructions
+    payment_message = card_manager.format_payment_message(card_title, card_number, amount)
+    
     message = (
         f"💳 *اطلاعات پرداخت*\n\n"
-        f"🔰 نوع پلن: *{plan_description}*\n"
+        f"🕊 نوع پلن: *{plan_description}*\n"
         f"💰 مبلغ: *{amount_display}*\n\n"
-        f"💳 شماره کارت:\n`{card_number}`\n\n"
-        f"✏️ به نام: *محمد محمدی*\n\n"
+        f"{payment_message}\n\n"
         f"📧 شناسه سفارش: `#{order_id}`\n\n"
         f"❌ *لطفا شناسه سفارش را در توضیحات واریز ذکر کنید*\n\n"
         f"📷 پس از پرداخت، لطفا عکس رسید پرداخت خود را ارسال کنید."
