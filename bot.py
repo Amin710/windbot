@@ -1062,9 +1062,128 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Help message")
 
 
+async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Process seat edit input from a message."""
+    message = update.message
+    text = message.text.strip()
+    user = update.effective_user
+    
+    # Get the seat_id from context
+    seat_id = context.user_data.get('edit_seat_id')
+    return_page = context.user_data.get('edit_return_page', 1)
+    
+    try:
+        # Parse the input - split into maximum 4 parts
+        parts = text.split(maxsplit=3)
+        
+        # Pad with '-' if there are fewer than 4 parts
+        while len(parts) < 4:
+            parts.append('-')
+        
+        # Extract the parts
+        email, password, secret, slots = parts
+        
+        # Fetch current row data
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                # Get current seat data
+                cur.execute(
+                    "SELECT email, pass_enc, secret_enc, max_slots FROM seats WHERE id = %s",
+                    (seat_id,)
+                )
+                result = cur.fetchone()
+                
+                if not result:
+                    await message.reply_text(
+                        f"❌ *خطا: صندلی شماره {seat_id} یافت نشد*",
+                        parse_mode="Markdown"
+                    )
+                    context.user_data.pop('edit_seat_id', None)
+                    context.user_data.pop('edit_return_page', None)
+                    return
+                
+                current_email, current_pass_enc, current_secret_enc, current_max_slots = result
+                
+                # Prepare new values
+                new_email = email if email != '-' else current_email
+                new_pass_enc = encrypt(password) if password != '-' else current_pass_enc
+                new_secret_enc = encrypt(secret) if secret != '-' else current_secret_enc
+                
+                # Handle slots conversion
+                try:
+                    new_slots = int(slots) if slots != '-' else current_max_slots
+                except ValueError:
+                    await message.reply_text(
+                        "❌ *خطا: تعداد صندلی باید یک عدد باشد*",
+                        parse_mode="Markdown"
+                    )
+                    return
+                
+                # Validate email if it's changing
+                if email != '-' and '@' not in new_email:
+                    await message.reply_text(
+                        "❌ *خطا: فرمت ایمیل نامعتبر است*",
+                        parse_mode="Markdown"
+                    )
+                    return
+                
+                # Check if any changes were made
+                if (new_email == current_email and 
+                    new_pass_enc == current_pass_enc and 
+                    new_secret_enc == current_secret_enc and 
+                    new_slots == current_max_slots):
+                    await message.reply_text(
+                        "ℹ️ *هیچ تغییری اعمال نشد*",
+                        parse_mode="Markdown"
+                    )
+                    context.user_data.pop('edit_seat_id', None)
+                    context.user_data.pop('edit_return_page', None)
+                    return
+                
+                # Update the seat
+                cur.execute(
+                    "UPDATE seats SET email=%s, pass_enc=%s, secret_enc=%s, max_slots=%s WHERE id=%s",
+                    (new_email, new_pass_enc, new_secret_enc, new_slots, seat_id)
+                )
+                conn.commit()
+                
+                # Confirm success
+                await message.reply_text(
+                    f"✅ *ویرایش شد*\n\n"
+                    f"💬 ایمیل: `{new_email}`\n"
+                    f"💺 صندلی‌ها: {new_slots}",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔙 بازگشت به لیست", callback_data=f"admin:list|{return_page}")]
+                    ])
+                )
+                
+                # Clear edit mode
+                context.user_data.pop('edit_seat_id', None)
+                context.user_data.pop('edit_return_page', None)
+                
+    except Exception as e:
+        logger.error(f"Error editing seat: {e}")
+        await message.reply_text(
+            f"❌ *خطا در ویرایش صندلی*\n\n`{str(e)[:200]}`",
+            parse_mode="Markdown"
+        )
+        context.user_data.pop('edit_seat_id', None)
+        context.user_data.pop('edit_return_page', None)
+
+
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    await update.message.reply_text(update.message.text)
+    """Echo the user message - default fallback."""
+    message = update.message
+    text = message.text
+    
+    # Check if we're in seat edit mode
+    if 'edit_seat_id' in context.user_data:
+        await process_seat_edit(update, context)
+        return
+    
+    # Log the message
+    logger.info(f"Received message from {update.effective_user.id}: {text}")
 
 
 async def get_available_seat():
@@ -1650,19 +1769,21 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         # Insert into database
                         with db.get_conn() as conn:
                             with conn.cursor() as cur:
-                                try:
-                                    cur.execute(
-                                        "INSERT INTO seats (email, pass_enc, secret_enc, max_slots) "
-                                        "VALUES (%s, %s, %s, %s) RETURNING id",
-                                        (email, pass_enc, secret_enc, max_slots)
-                                    )
-                                    seat_id = cur.fetchone()[0]
-                                    conn.commit()
-                                    success_count += 1
-                                except psycopg2.errors.UniqueViolation:
+                                cur.execute(
+                                    """INSERT INTO seats (email, pass_enc, secret_enc, max_slots)
+                                       VALUES (%s, %s, %s, %s)
+                                       ON CONFLICT (email) DO NOTHING
+                                       RETURNING id""",
+                                    (email, pass_enc, secret_enc, max_slots)
+                                )
+                                result = cur.fetchone()
+                                conn.commit()
+                                
+                                if result is None or cur.rowcount == 0:
                                     # Email already exists
-                                    conn.rollback()
                                     duplicate_count += 1
+                                else:
+                                    success_count += 1
                     except Exception as row_error:
                         error_count += 1
                         errors.append(f"Row {i}: {str(row_error)[:50]}")
@@ -1723,52 +1844,40 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not context.user_data.get('awaiting_single_seat', False):
         return -1
     
-    # Clear the flag (always clear, even if there's an error)
-    context.user_data.pop('awaiting_single_seat', None)
-    
-    # Parse the input - split into maximum 4 parts (email, password, secret, slots)
-    # This allows password and secret to contain spaces
-    parts = message_text.split(maxsplit=3)
-    if len(parts) < 3:
-        await update.message.reply_text(
-            "❌ *خطا: فرمت نامعتبر*\n\n"
-            "لطفاً اطلاعات را به صورت `email password secret [slots]` وارد کنید.",
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-        return -1
-    
     try:
+        # Parse the input - split into maximum 4 parts (email, password, secret, slots)
+        # This allows password and secret to contain spaces
+        parts = message_text.split(maxsplit=3)
+        if len(parts) < 3:
+            await update.message.reply_text(
+                "❌ *خطا: فرمت نامعتبر*\n\n"
+                "لطفاً اطلاعات را به صورت `email password secret [slots]` وارد کنید.",
+                parse_mode="Markdown",
+                reply_markup=get_admin_keyboard()
+            )
+            return -1
+        
         # Extract the parts
-        email = parts[0]
-        password = parts[1]
+        email = parts[0].strip()
+        password = parts[1].strip()
         
         # For the last part, check if it contains both secret and slots
         if len(parts) == 4:
-            secret = parts[2]
+            secret = parts[2].strip()
             try:
-                max_slots = int(parts[3])
+                max_slots = int(parts[3].strip())
             except ValueError:
                 # If the last part isn't a valid integer, treat it as part of the secret
                 secret = parts[2] + ' ' + parts[3]
                 max_slots = 15
         else:
-            secret = parts[2]
+            secret = parts[2].strip()
             max_slots = 15
         
         # Validate email
         if '@' not in email:
             await update.message.reply_text(
                 "❌ *خطا: ایمیل نامعتبر*",
-                parse_mode="Markdown",
-                reply_markup=get_admin_keyboard()
-            )
-            return -1
-        
-        # Validate slots
-        if max_slots <= 0:
-            await update.message.reply_text(
-                "❌ *خطا: تعداد صندلی‌ها باید بزرگتر از صفر باشد*",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
@@ -1782,15 +1891,32 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO seats (email, pass_enc, secret_enc, max_slots) VALUES (%s, %s, %s, %s) RETURNING id",
+                    """INSERT INTO seats (email, pass_enc, secret_enc, max_slots)
+                       VALUES (%s, %s, %s, %s)
+                       ON CONFLICT (email) DO NOTHING
+                       RETURNING id""",
                     (email, pass_enc, secret_enc, max_slots)
                 )
-                seat_id = cur.fetchone()[0]
+                
+                result = cur.fetchone()
                 conn.commit()
+                
+                # Check if the insert was successful
+                if result is None or cur.rowcount == 0:
+                    # Email already exists
+                    await update.message.reply_text(
+                        f"⚠️ *این ایمیل قبلاً ثبت شده است*\n\n"
+                        f"💬 ایمیل: `{email}`",
+                        parse_mode="Markdown",
+                        reply_markup=get_admin_keyboard()
+                    )
+                    return -1
+                
+                seat_id = result[0]
         
         # Confirm success
         await update.message.reply_text(
-            f"✅ *صندلی ذخیره شد*\n\n"
+            f"✅ *صندلی اضافه شد*\n\n"
             f"💬 ایمیل: `{email}`\n"
             f"💺 صندلی‌ها: {max_slots}\n"
             f"🆔 شناسه: #{seat_id}",
@@ -1897,6 +2023,76 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             parse_mode="Markdown"
         )
         
+    # Seat management callbacks
+    elif data.startswith("seat:"):
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
+        if not is_admin:
+            await query.edit_message_text("شما دسترسی ادمین ندارید.")
+            return
+            
+        # Extract seat action and ID
+        match = re.match(r'^seat:(\w+):(\d+)$', data)
+        if match:
+            action, seat_id = match.groups()
+            seat_id = int(seat_id)
+            
+            if action == "del":
+                # Handle seat deletion
+                try:
+                    # Get the current page to return to it after deletion
+                    page_match = re.search(r"admin:list\|(\d+)", context.user_data.get('last_list_page', 'admin:list|1'))
+                    current_page = int(page_match.group(1)) if page_match else 1
+                    
+                    # Update seat status to disabled
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                "UPDATE seats SET status='disabled' WHERE id=%s", 
+                                (seat_id,)
+                            )
+                            conn.commit()
+                            
+                    # Show confirmation
+                    await query.answer("حذف شد", show_alert=True)
+                    
+                    # Refresh the current page
+                    from handlers.admin_accounts import handle_accounts_list
+                    await handle_accounts_list(update, context, current_page)
+                    
+                except Exception as e:
+                    logger.error(f"Error deleting seat: {e}")
+                    await query.answer(f"خطا در حذف صندلی: {str(e)[:200]}", show_alert=True)
+            
+            elif action == "edit":
+                # Handle seat edit
+                try:
+                    # Save seat_id in context for the message handler
+                    context.user_data['edit_seat_id'] = seat_id
+                    
+                    # Get the current page to return to after editing
+                    page_match = re.search(r"admin:list\|(\d+)", context.user_data.get('last_list_page', 'admin:list|1'))
+                    current_page = int(page_match.group(1)) if page_match else 1
+                    context.user_data['edit_return_page'] = current_page
+                    
+                    # Create keyboard
+                    keyboard = [
+                        [InlineKeyboardButton("🔙 بازگشت به لیست", callback_data=f"admin:list|{current_page}")]
+                    ]
+                    
+                    # Show edit prompt
+                    await query.edit_message_text(
+                        f"✏️ *ویرایش صندلی شماره #{seat_id}*\n\n"
+                        f"ایمیل پسورد سکرت اسلات (برای نگه‌داشتن مقدار فعلی از - استفاده کن)\n\n"
+                        f"مثال:\n`new@email.com - newsecret 25`\n\n"
+                        f"یا برای حفظ همه مقادیر:\n`- - - -`",
+                        parse_mode="Markdown",
+                        reply_markup=InlineKeyboardMarkup(keyboard)
+                    )
+                except Exception as e:
+                    logger.error(f"Error preparing seat edit: {e}")
+                    await query.answer(f"خطا در آماده‌سازی ویرایش: {str(e)[:200]}", show_alert=True)
+    
     # Admin panel callbacks
     elif data.startswith("admin:"):
         # Check if user is admin
