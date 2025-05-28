@@ -152,26 +152,45 @@ async def process_add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Clear the flag
     context.user_data.pop('awaiting_card_info', None)
     
-    # Try to parse title and card number
-    parts = text.split(maxsplit=1)
+    # Try to extract card number from the end of the text
+    # Look for a sequence of digits (possibly with spaces/dashes) at the end
+    import re
     
-    if len(parts) < 2:
+    # Match card number pattern at the end: digits, spaces, dashes (minimum 13 digits for a valid card)
+    card_pattern = r'[\d\s\-]{13,}$'
+    match = re.search(card_pattern, text)
+    
+    if not match:
         await message.reply_text(
             "❌ *خطا در فرمت*\n\n"
-            "لطفا عنوان و شماره کارت را با یک فاصله وارد کنید.\n"
-            "مثال: `کارت سامان 6219861234567890`",
+            "لطفا عنوان و شماره کارت را وارد کنید.\n"
+            "مثال: `کارت سامان 6219861234567890`\n\n"
+            "شماره کارت باید حداقل ۱۳ رقم باشد.",
             parse_mode="Markdown"
         )
         return
     
-    title = parts[0]
-    number = parts[1].replace(' ', '').replace('-', '')
+    # Extract card number and clean it
+    card_number_raw = match.group().strip()
+    number = card_number_raw.replace(' ', '').replace('-', '')
     
-    # Validate card number
-    if not number.isdigit():
+    # Validate card number (should be all digits and reasonable length)
+    if not number.isdigit() or len(number) < 13 or len(number) > 19:
         await message.reply_text(
             "❌ *خطا در شماره کارت*\n\n"
-            "شماره کارت باید فقط شامل ارقام باشد.",
+            "شماره کارت باید فقط شامل ارقام باشد و بین ۱۳ تا ۱۹ رقم داشته باشد.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Extract title (everything before the card number)
+    title = text[:match.start()].strip()
+    
+    if not title:
+        await message.reply_text(
+            "❌ *خطا در عنوان*\n\n"
+            "لطفا عنوان کارت را وارد کنید.\n"
+            "مثال: `کارت سامان 6219861234567890`",
             parse_mode="Markdown"
         )
         return
