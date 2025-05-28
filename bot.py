@@ -1172,18 +1172,43 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         context.user_data.pop('edit_return_page', None)
 
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message - default fallback."""
-    message = update.message
-    text = message.text
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Universal message handler for all message types."""
+    user_id = update.effective_user.id
     
-    # Check if we're in seat edit mode
-    if 'edit_seat_id' in context.user_data:
-        await process_seat_edit(update, context)
+    # Handle document uploads (CSV files)
+    if update.message.document and context.user_data.get('awaiting_csv', False):
+        # Clear the flag immediately
+        context.user_data.pop('awaiting_csv', None)
+        # Process CSV upload directly
+        await process_csv_upload_direct(update, context)
         return
     
-    # Log the message
-    logger.info(f"Received message from {update.effective_user.id}: {text}")
+    # Handle text messages
+    if update.message.text:
+        text = update.message.text
+        
+        # Log the message
+        logger.info(f"Received message from {user_id}: {text}")
+        
+        # Check if we're in seat edit mode
+        if 'edit_seat_id' in context.user_data:
+            await process_seat_edit(update, context)
+            return
+            
+        # Check if we're expecting a seat input
+        if context.user_data.get('awaiting_single_seat', False):
+            # Clear the flag immediately
+            context.user_data.pop('awaiting_single_seat', None)
+            # Process seat input directly
+            await process_add_seat_direct(update, context)
+            return
+
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Echo the user message - default fallback."""
+    # Forward to the message handler
+    await message_handler(update, context)
 
 
 async def get_available_seat():
@@ -1674,6 +1699,228 @@ async def process_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE
     return await handle_price_input(update, context)
 
 
+async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Process the uploaded CSV file for bulk seat import directly."""
+    message = update.message
+    document = message.document
+    user = update.effective_user
+    
+    # Check if user is admin
+    is_admin = await check_admin(user.id)
+    if not is_admin:
+        await message.reply_text("شما دسترسی ادمین ندارید.")
+        return
+    
+    # Check if it's a CSV file
+    if not document.file_name.lower().endswith('.csv'):
+        await message.reply_text(
+            "❌ *خطا: فایل باید CSV باشد*",
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
+        return
+    
+    # Status message
+    status_msg = await message.reply_text(
+        "⏳ *در حال دانلود و پردازش فایل CSV...*",
+        parse_mode="Markdown"
+    )
+    
+    csv_file_path = f"temp_{message.message_id}.csv"
+    
+    try:
+        # Download the file
+        file = await context.bot.get_file(document.file_id)
+        await file.download_to_drive(csv_file_path)
+        
+        await status_msg.edit_text(
+            "✅ *فایل با موفقیت دانلود شد، در حال پردازش...*",
+            parse_mode="Markdown"
+        )
+        
+        # Process CSV
+        success_count = 0
+        duplicate_count = 0
+        error_count = 0
+        errors = []
+        reader = None
+        
+        # Try opening with different encodings
+        encodings = ['utf-8', 'latin-1', 'cp1256']
+        for encoding in encodings:
+            try:
+                with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    # Test reading the first row to verify encoding
+                    fieldnames = reader.fieldnames
+                    if fieldnames:  # Successfully parsed headers
+                        # Reopen file with correct encoding
+                        csvfile.seek(0)
+                        reader = csv.DictReader(csvfile)
+                        break
+            except Exception as enc_error:
+                logger.error(f"Error with encoding {encoding}: {enc_error}")
+                continue
+        
+        if not reader or not reader.fieldnames:
+            await status_msg.edit_text(
+                "❌ *خطا در خواندن فایل CSV: فرمت فایل نامعتبر است*",
+                parse_mode="Markdown",
+                reply_markup=get_admin_keyboard()
+            )
+            if os.path.exists(csv_file_path):
+                os.remove(csv_file_path)
+            return
+        
+        # Log the fieldnames for debugging
+        logger.info(f"CSV fieldnames: {reader.fieldnames}")
+        
+        # Verify required columns
+        required_fields = ['email', 'password', 'secret']
+        missing_fields = [field for field in required_fields if field not in reader.fieldnames]
+        
+        if missing_fields:
+            await status_msg.edit_text(
+                f"❌ *خطا: ستون‌های {', '.join(missing_fields)} در فایل CSV یافت نشد*\n\n"
+                f"ستون‌های مورد نیاز: email, password, secret, slots (اختیاری)",
+                parse_mode="Markdown",
+                reply_markup=get_admin_keyboard()
+            )
+            if os.path.exists(csv_file_path):
+                os.remove(csv_file_path)
+            return
+        
+        # Now process rows
+        total_rows = 0
+        
+        # Read file again with correct encoding
+        with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
+            reader = csv.DictReader(csvfile)
+            
+            for i, row in enumerate(reader, 1):
+                total_rows = i
+                try:
+                    # Extract data with detailed validation
+                    if 'email' not in row or not row['email'].strip():
+                        error_count += 1
+                        errors.append(f"Row {i}: Missing email")
+                        continue
+                        
+                    if 'password' not in row or not row['password'].strip():
+                        error_count += 1
+                        errors.append(f"Row {i}: Missing password")
+                        continue
+                        
+                    if 'secret' not in row or not row['secret'].strip():
+                        error_count += 1
+                        errors.append(f"Row {i}: Missing secret")
+                        continue
+                    
+                    email = row['email'].strip()
+                    password = row['password'].strip()
+                    secret = row['secret'].strip()
+                    
+                    # Validate email format
+                    if '@' not in email:
+                        error_count += 1
+                        errors.append(f"Row {i}: Invalid email format")
+                        continue
+                    
+                    # Get slots (optional)
+                    max_slots = 15  # Default value
+                    if 'slots' in row and row['slots'] and row['slots'].strip():
+                        try:
+                            max_slots = int(row['slots'].strip())
+                            if max_slots <= 0:
+                                max_slots = 15
+                        except ValueError:
+                            # Use default if conversion fails
+                            errors.append(f"Row {i}: Invalid slots value, using default")
+                            max_slots = 15
+                    
+                    # Encrypt credentials
+                    pass_enc = encrypt(password)
+                    secret_enc = encrypt(secret)
+                    
+                    # Insert into database
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                """INSERT INTO seats (email, pass_enc, secret_enc, max_slots)
+                                   VALUES (%s, %s, %s, %s)
+                                   ON CONFLICT (email) DO NOTHING
+                                   RETURNING id""",
+                                (email, pass_enc, secret_enc, max_slots)
+                            )
+                            result = cur.fetchone()
+                            conn.commit()
+                            
+                            if result is None or cur.rowcount == 0:
+                                # Email already exists
+                                duplicate_count += 1
+                            else:
+                                success_count += 1
+                                logger.info(f"Added seat: {email}")
+                                
+                except Exception as row_error:
+                    error_count += 1
+                    error_str = str(row_error)[:100]
+                    errors.append(f"Row {i}: {error_str}")
+                    logger.error(f"Error processing row {i}: {error_str}")
+                
+                # Update status every 5 rows
+                if i % 5 == 0:
+                    try:
+                        await status_msg.edit_text(
+                            f"⏳ *در حال پردازش ردیف‌های CSV...*\n\n"
+                            f"پردازش شده: {i}\n"
+                            f"موفق: {success_count}\n"
+                            f"تکراری: {duplicate_count}\n"
+                            f"خطا: {error_count}",
+                            parse_mode="Markdown"
+                        )
+                    except Exception as status_error:
+                        logger.error(f"Error updating status: {status_error}")
+        
+        # Show final results
+        result_message = f"✅ *افزودن گروهی اکانت‌ها انجام شد*\n\n"
+        result_message += f"🔢 کل ردیف‌ها: {total_rows}\n"
+        result_message += f"✅ موفق: {success_count}\n"
+        result_message += f"🔄 تکراری: {duplicate_count}\n"
+        result_message += f"❌ خطا: {error_count}\n"
+        
+        if errors:
+            result_message += "\n📋 *خطاها:*\n"
+            # Show first 5 errors max
+            for error in errors[:5]:
+                result_message += f"- {error}\n"
+            
+            if len(errors) > 5:
+                result_message += f"و {len(errors) - 5} خطای دیگر..."
+        
+        await status_msg.edit_text(
+            result_message,
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in CSV processing: {e}")
+        await status_msg.edit_text(
+            f"❌ *خطای سیستمی در پردازش فایل*\n\n`{str(e)[:200]}`",
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
+    
+    finally:
+        # Clean up temp file
+        try:
+            if os.path.exists(csv_file_path):
+                os.remove(csv_file_path)
+        except Exception as e:
+            logger.error(f"Error cleaning up temp file: {e}")
+
+
 async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Process the uploaded CSV file for bulk seat import."""
     # Check if we're expecting a CSV file
@@ -1899,29 +2146,30 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return -1  # End conversation
 
 
-async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Process the add seat input message."""
-    message_text = update.message.text.strip()
+async def process_add_seat_direct(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Process the add seat input message directly."""
+    message = update.message
+    message_text = message.text.strip()
+    user = update.effective_user
     
-    # Check if we're expecting a seat input
-    if not context.user_data.get('awaiting_single_seat', False):
-        return -1
-        
-    # Clear the flag immediately to prevent issues
-    context.user_data.pop('awaiting_single_seat', None)
+    # Check if user is admin
+    is_admin = await check_admin(user.id)
+    if not is_admin:
+        await message.reply_text("شما دسترسی ادمین ندارید.")
+        return
     
     try:
         # Parse the input - split into maximum 4 parts (email, password, secret, slots)
         # This allows password and secret to contain spaces
         parts = message_text.split(maxsplit=3)
         if len(parts) < 3:
-            await update.message.reply_text(
+            await message.reply_text(
                 "❌ *خطا: فرمت نامعتبر*\n\n"
                 "لطفاً اطلاعات را به صورت `email password secret [slots]` وارد کنید.",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
-            return -1
+            return
         
         # Extract the parts
         email = parts[0].strip()
@@ -1942,12 +2190,21 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         # Validate email
         if '@' not in email:
-            await update.message.reply_text(
+            await message.reply_text(
                 "❌ *خطا: ایمیل نامعتبر*",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
-            return -1
+            return
+        
+        # Validate slots
+        if max_slots <= 0:
+            await message.reply_text(
+                "❌ *خطا: تعداد صندلی‌ها باید بزرگتر از صفر باشد*",
+                parse_mode="Markdown",
+                reply_markup=get_admin_keyboard()
+            )
+            return
         
         # Encrypt credentials
         pass_enc = encrypt(password)
@@ -1970,18 +2227,18 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 # Check if the insert was successful
                 if result is None or cur.rowcount == 0:
                     # Email already exists
-                    await update.message.reply_text(
+                    await message.reply_text(
                         f"⚠️ *این ایمیل قبلاً ثبت شده است*\n\n"
                         f"💬 ایمیل: `{email}`",
                         parse_mode="Markdown",
                         reply_markup=get_admin_keyboard()
                     )
-                    return -1
+                    return
                 
                 seat_id = result[0]
         
         # Confirm success
-        await update.message.reply_text(
+        await message.reply_text(
             f"✅ *صندلی اضافه شد*\n\n"
             f"💬 ایمیل: `{email}`\n"
             f"💺 صندلی‌ها: {max_slots}\n"
@@ -1991,16 +2248,21 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         
         logger.info(f"Admin {update.effective_user.id} added new seat: {email} (ID: {seat_id})")
-        return -1
         
     except Exception as e:
         logger.error(f"Error adding seat: {e}")
-        await update.message.reply_text(
+        await message.reply_text(
             f"❌ *خطا در افزودن صندلی*\n\n`{str(e)[:200]}`",
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
         )
-        return -1
+
+
+async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Process the add seat input message via ConversationHandler."""
+    # This function is no longer used directly, but remains for compatibility
+    # Instead, process_add_seat_direct is called from echo handler
+    return -1
 
 
 async def admin_process_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -2596,8 +2858,11 @@ def main() -> None:
     # Callback query handler for inline keyboards
     application.add_handler(CallbackQueryHandler(callback_handler))
     
-    # Echo handler (lowest priority)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    # Message handler for all types of messages (lowest priority)
+    application.add_handler(MessageHandler(
+        (filters.TEXT | filters.Document.ALL) & ~filters.COMMAND, 
+        message_handler
+    ))
     
     # Register error handler
     application.add_error_handler(error_handler)
