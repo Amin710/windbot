@@ -50,7 +50,7 @@ async def show_cards_list(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
             
             # Get cards for current page
             cur.execute(
-                """SELECT id, title, number FROM cards 
+                """SELECT id, title, card_number FROM cards 
                    WHERE active = TRUE 
                    ORDER BY id DESC 
                    LIMIT %s OFFSET %s""", 
@@ -181,7 +181,7 @@ async def process_add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO cards (title, number) VALUES (%s, %s) RETURNING id",
+                    "INSERT INTO cards (title, card_number) VALUES (%s, %s) RETURNING id",
                     (title, number)
                 )
                 card_id = cur.fetchone()[0]
@@ -217,7 +217,7 @@ async def delete_card(update: Update, context: ContextTypes.DEFAULT_TYPE, card_i
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE cards SET active = FALSE WHERE id = %s RETURNING title, number",
+                    "UPDATE cards SET active = FALSE WHERE id = %s RETURNING title, card_number",
                     (card_id,)
                 )
                 result = cur.fetchone()
@@ -274,7 +274,7 @@ async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, c
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT title, number FROM cards WHERE id = %s AND active = TRUE",
+                    "SELECT title, card_number FROM cards WHERE id = %s AND active = TRUE",
                     (card_id,)
                 )
                 result = cur.fetchone()
@@ -372,7 +372,7 @@ async def process_edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE cards SET title = %s, number = %s WHERE id = %s AND active = TRUE",
+                    "UPDATE cards SET title = %s, card_number = %s WHERE id = %s AND active = TRUE",
                     (new_title, new_number, card_id)
                 )
                 conn.commit()
@@ -411,7 +411,7 @@ def get_random_card() -> Tuple[Optional[str], Optional[str]]:
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT title, number FROM cards WHERE active = TRUE")
+                cur.execute("SELECT title, card_number FROM cards WHERE active = TRUE")
                 cards = cur.fetchall()
                 
                 if not cards:

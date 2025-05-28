@@ -25,7 +25,7 @@ def get_random_payment_card() -> Tuple[Optional[str], Optional[str]]:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 # Try to get active cards from the cards table
-                cur.execute("SELECT title, number FROM cards WHERE active = TRUE")
+                cur.execute("SELECT title, card_number FROM cards WHERE active = TRUE")
                 cards = cur.fetchall()
                 
                 if not cards:
