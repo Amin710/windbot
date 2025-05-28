@@ -479,7 +479,7 @@ async def backup_db(bot, status_message):
         dbname = host_port_db[1]
         
         # Create a temporary file for the backup
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"wind_reseller_backup_{timestamp}.sql"
         
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1325,7 +1325,7 @@ async def approve_order(order_id):
                 cur.execute(
                     "UPDATE orders SET status = 'approved', seat_id = %s, approved_at = %s "
                     "WHERE id = %s",
-                    (seat["id"], datetime.datetime.now(), order_id)
+                    (seat["id"], datetime.now(), order_id)
                 )
                 
                 # Log the approval
