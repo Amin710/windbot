@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Wind Reseller CLI Admin Tool
 
@@ -6,16 +6,25 @@ A command-line tool for administrative tasks on the Wind Reseller system.
 Provides commands for:
 - Adding seats (service accounts) with encrypted credentials
 - Promoting users to admin status
+- Running database migrations
+- Initializing the database
+- Creating a database backup
+- Showing bot statistics
 
 Usage:
     python cli.py add_seat <email> <password> <secret> [--slots=15]
     python cli.py make_admin <telegram_id>
+    python cli.py migrate
+    python cli.py init-db
+    python cli.py backup
+    python cli.py stats
 """
 import argparse
 import logging
 import os
 import sys
 from typing import Optional
+from pathlib import Path
 
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
@@ -23,6 +32,10 @@ from dotenv import load_dotenv
 # Import our modules
 import db
 from bot import encrypt
+
+# Add the project root to Python path
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
 # Configure logging
 logging.basicConfig(
@@ -54,6 +67,18 @@ def setup_argparse():
     # Make admin command
     make_admin_parser = subparsers.add_parser("make_admin", help="Make a user an admin")
     make_admin_parser.add_argument("tg_id", type=int, help="Telegram user ID to promote to admin")
+    
+    # Migration command
+    subparsers.add_parser('migrate', help='Run database migrations')
+    
+    # Init command
+    subparsers.add_parser('init-db', help='Initialize database')
+    
+    # Backup command
+    subparsers.add_parser('backup', help='Create database backup')
+    
+    # Stats command
+    subparsers.add_parser('stats', help='Show bot statistics')
     
     return parser
 
@@ -134,6 +159,79 @@ def make_admin(tg_id: int) -> bool:
         return False
 
 
+def run_migrations():
+    """Run database migrations."""
+    print("Running database migrations...")
+    try:
+        success = db.apply_migrations()
+        if success:
+            print("✅ Migrations applied successfully!")
+        else:
+            print("❌ Failed to apply migrations!")
+            return 1
+    except Exception as e:
+        print(f"❌ Error running migrations: {e}")
+        return 1
+    return 0
+
+
+def init_database():
+    """Initialize the database."""
+    print("Initializing database...")
+    try:
+        success = db.init_db()
+        if success:
+            print("✅ Database initialized successfully!")
+        else:
+            print("❌ Failed to initialize database!")
+            return 1
+    except Exception as e:
+        print(f"❌ Error initializing database: {e}")
+        return 1
+    return 0
+
+
+def backup_database():
+    """Create a database backup."""
+    print("Creating database backup...")
+    # Implementation for backup can be added here
+    print("⚠️  Backup functionality not implemented in CLI yet")
+    return 0
+
+
+def show_stats():
+    """Show bot statistics."""
+    print("Bot Statistics:")
+    try:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                # Get user count
+                cur.execute("SELECT COUNT(*) FROM users")
+                user_count = cur.fetchone()[0]
+                
+                # Get order count
+                cur.execute("SELECT COUNT(*) FROM orders")
+                order_count = cur.fetchone()[0]
+                
+                # Get approved orders
+                cur.execute("SELECT COUNT(*) FROM orders WHERE status = 'approved'")
+                approved_count = cur.fetchone()[0]
+                
+                # Get active seats
+                cur.execute("SELECT COUNT(*) FROM seats WHERE status = 'active'")
+                seat_count = cur.fetchone()[0]
+                
+                print(f"👤 Users: {user_count}")
+                print(f"📦 Total Orders: {order_count}")
+                print(f"✅ Approved Orders: {approved_count}")
+                print(f"🪑 Active Seats: {seat_count}")
+                
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
+        return 1
+    return 0
+
+
 def main():
     """Main entry point for the CLI."""
     parser = setup_argparse()
@@ -165,7 +263,20 @@ def main():
         else:
             print("❌ Failed to make user admin")
             sys.exit(1)
+    
+    elif args.command == "migrate":
+        return run_migrations()
+    
+    elif args.command == "init-db":
+        return init_database()
+    
+    elif args.command == "backup":
+        return backup_database()
+    
+    elif args.command == "stats":
+        return show_stats()
 
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    sys.exit(exit_code)

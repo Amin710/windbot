@@ -186,6 +186,29 @@ def apply_migrations():
                 ALTER TABLE wallets ADD COLUMN IF NOT EXISTS referral_earned NUMERIC(12,2) DEFAULT 0;
                 """)
                 
+                # Create cards table for card management system
+                cur.execute("""
+                CREATE TABLE IF NOT EXISTS cards (
+                    id SERIAL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    card_number TEXT NOT NULL,
+                    active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+                """)
+                
+                # Create index for cards table
+                cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_cards_active ON cards(active);
+                """)
+                
+                # Insert default card if table is empty
+                cur.execute("""
+                INSERT INTO cards (title, card_number, active) 
+                SELECT 'کارت پیش‌فرض', '1234-5678-9012-3456', TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM cards LIMIT 1);
+                """)
+                
                 conn.commit()
         logger.info("Database migrations applied successfully")
         return True
