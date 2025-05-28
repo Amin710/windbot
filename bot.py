@@ -1702,138 +1702,201 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode="Markdown"
     )
     
+    csv_file_path = f"temp_{message.message_id}.csv"
+    
     try:
         # Download the file
         file = await context.bot.get_file(document.file_id)
-        csv_file_path = f"temp_{message.message_id}.csv"
         await file.download_to_drive(csv_file_path)
+        
+        await status_msg.edit_text(
+            "✅ *فایل با موفقیت دانلود شد، در حال پردازش...*",
+            parse_mode="Markdown"
+        )
         
         # Process CSV
         success_count = 0
         duplicate_count = 0
         error_count = 0
         errors = []
+        reader = None
         
-        try:
-            # Update status
+        # Try opening with different encodings
+        encodings = ['utf-8', 'latin-1', 'cp1256']
+        for encoding in encodings:
+            try:
+                with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    # Test reading the first row to verify encoding
+                    fieldnames = reader.fieldnames
+                    if fieldnames:  # Successfully parsed headers
+                        # Reopen file with correct encoding
+                        csvfile.seek(0)
+                        reader = csv.DictReader(csvfile)
+                        break
+            except Exception as enc_error:
+                logger.error(f"Error with encoding {encoding}: {enc_error}")
+                continue
+        
+        if not reader or not reader.fieldnames:
             await status_msg.edit_text(
-                "⏳ *در حال پردازش ردیف‌های CSV...*",
-                parse_mode="Markdown"
+                "❌ *خطا در خواندن فایل CSV: فرمت فایل نامعتبر است*",
+                parse_mode="Markdown",
+                reply_markup=get_admin_keyboard()
             )
-            
-            # Open and process CSV
-            with open(csv_file_path, 'r', newline='', encoding='utf-8') as csvfile:
-                reader = csv.DictReader(csvfile)
-                # Verify required columns
-                required_fields = ['email', 'password', 'secret']
-                for field in required_fields:
-                    if field not in reader.fieldnames:
-                        await status_msg.edit_text(
-                            f"❌ *خطا: ستون {field} در فایل CSV یافت نشد*\n\n"
-                            f"ستون‌های مورد نیاز: email, password, secret, slots (اختیاری)",
-                            parse_mode="Markdown",
-                            reply_markup=get_admin_keyboard()
-                        )
-                        os.remove(csv_file_path)  # Clean up
-                        return -1
-                
-                # Process each row
-                for i, row in enumerate(reader, 1):
-                    try:
-                        # Extract data
-                        email = row['email'].strip()
-                        password = row['password'].strip()
-                        secret = row['secret'].strip()
-                        
-                        # Get slots (optional)
-                        max_slots = 15  # Default - always use 15 if slots column is missing or invalid
-                        if 'slots' in row and row['slots'] and row['slots'].strip():
-                            try:
-                                max_slots = int(row['slots'].strip())
-                                if max_slots <= 0:
-                                    max_slots = 15
-                            except ValueError:
-                                # Use default if conversion fails
-                                max_slots = 15
-                        
-                        # Validate email
-                        if '@' not in email:
-                            error_count += 1
-                            errors.append(f"Row {i}: Invalid email format")
-                            continue
-                        
-                        # Encrypt credentials
-                        pass_enc = encrypt(password)
-                        secret_enc = encrypt(secret)
-                        
-                        # Insert into database
-                        with db.get_conn() as conn:
-                            with conn.cursor() as cur:
-                                cur.execute(
-                                    """INSERT INTO seats (email, pass_enc, secret_enc, max_slots)
-                                       VALUES (%s, %s, %s, %s)
-                                       ON CONFLICT (email) DO NOTHING
-                                       RETURNING id""",
-                                    (email, pass_enc, secret_enc, max_slots)
-                                )
-                                result = cur.fetchone()
-                                conn.commit()
-                                
-                                if result is None or cur.rowcount == 0:
-                                    # Email already exists
-                                    duplicate_count += 1
-                                else:
-                                    success_count += 1
-                    except Exception as row_error:
-                        error_count += 1
-                        errors.append(f"Row {i}: {str(row_error)[:50]}")
-                        
-                    # Update status every 10 rows
-                    if i % 10 == 0:
-                        await status_msg.edit_text(
-                            f"⏳ *پردازش ردیف‌های CSV...*\n\n"
-                            f"تعداد ردیف‌های پردازش شده: {i}\n"
-                            f"موفق: {success_count} | تکراری: {duplicate_count} | خطا: {error_count}",
-                            parse_mode="Markdown"
-                        )
-        finally:
-            # Clean up the temp file
             if os.path.exists(csv_file_path):
                 os.remove(csv_file_path)
+            return -1
         
-        # Final summary
-        status_text = f"✅ *پردازش CSV تکمیل شد*\n\n"
-        status_text += f"📊 *نتایج:*\n"
-        status_text += f"- صندلی‌های اضافه شده: {success_count}\n"
-        status_text += f"- ایمیل‌های تکراری: {duplicate_count}\n"
+        # Log the fieldnames for debugging
+        logger.info(f"CSV fieldnames: {reader.fieldnames}")
         
-        if error_count > 0:
-            status_text += f"- خطاها: {error_count}\n"
-            # Show first few errors
-            if errors:
-                status_text += "\n*چند خطای اول:*\n"
-                for e in errors[:3]:  # Show first 3 errors
-                    status_text += f"- {e}\n"
-                if len(errors) > 3:
-                    status_text += f"- ... ({len(errors) - 3} خطای دیگر)\n"
+        # Verify required columns
+        required_fields = ['email', 'password', 'secret']
+        missing_fields = [field for field in required_fields if field not in reader.fieldnames]
+        
+        if missing_fields:
+            await status_msg.edit_text(
+                f"❌ *خطا: ستون‌های {', '.join(missing_fields)} در فایل CSV یافت نشد*\n\n"
+                f"ستون‌های مورد نیاز: email, password, secret, slots (اختیاری)",
+                parse_mode="Markdown",
+                reply_markup=get_admin_keyboard()
+            )
+            if os.path.exists(csv_file_path):
+                os.remove(csv_file_path)
+            return -1
+        
+        # Now process rows
+        total_rows = 0
+        
+        # Read file again with correct encoding
+        with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
+            reader = csv.DictReader(csvfile)
+            
+            for i, row in enumerate(reader, 1):
+                total_rows = i
+                try:
+                    # Extract data with detailed validation
+                    if 'email' not in row or not row['email'].strip():
+                        error_count += 1
+                        errors.append(f"Row {i}: Missing email")
+                        continue
+                        
+                    if 'password' not in row or not row['password'].strip():
+                        error_count += 1
+                        errors.append(f"Row {i}: Missing password")
+                        continue
+                        
+                    if 'secret' not in row or not row['secret'].strip():
+                        error_count += 1
+                        errors.append(f"Row {i}: Missing secret")
+                        continue
+                    
+                    email = row['email'].strip()
+                    password = row['password'].strip()
+                    secret = row['secret'].strip()
+                    
+                    # Validate email format
+                    if '@' not in email:
+                        error_count += 1
+                        errors.append(f"Row {i}: Invalid email format")
+                        continue
+                    
+                    # Get slots (optional)
+                    max_slots = 15  # Default value
+                    if 'slots' in row and row['slots'] and row['slots'].strip():
+                        try:
+                            max_slots = int(row['slots'].strip())
+                            if max_slots <= 0:
+                                max_slots = 15
+                        except ValueError:
+                            # Use default if conversion fails
+                            errors.append(f"Row {i}: Invalid slots value, using default")
+                            max_slots = 15
+                    
+                    # Encrypt credentials
+                    pass_enc = encrypt(password)
+                    secret_enc = encrypt(secret)
+                    
+                    # Insert into database
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute(
+                                """INSERT INTO seats (email, pass_enc, secret_enc, max_slots)
+                                   VALUES (%s, %s, %s, %s)
+                                   ON CONFLICT (email) DO NOTHING
+                                   RETURNING id""",
+                                (email, pass_enc, secret_enc, max_slots)
+                            )
+                            result = cur.fetchone()
+                            conn.commit()
+                            
+                            if result is None or cur.rowcount == 0:
+                                # Email already exists
+                                duplicate_count += 1
+                            else:
+                                success_count += 1
+                                logger.info(f"Added seat: {email}")
+                                
+                except Exception as row_error:
+                    error_count += 1
+                    error_str = str(row_error)[:100]
+                    errors.append(f"Row {i}: {error_str}")
+                    logger.error(f"Error processing row {i}: {error_str}")
+                
+                # Update status every 5 rows
+                if i % 5 == 0:
+                    try:
+                        await status_msg.edit_text(
+                            f"⏳ *در حال پردازش ردیف‌های CSV...*\n\n"
+                            f"پردازش شده: {i}\n"
+                            f"موفق: {success_count}\n"
+                            f"تکراری: {duplicate_count}\n"
+                            f"خطا: {error_count}",
+                            parse_mode="Markdown"
+                        )
+                    except Exception as status_error:
+                        logger.error(f"Error updating status: {status_error}")
+        
+        # Show final results
+        result_message = f"✅ *افزودن گروهی اکانت‌ها انجام شد*\n\n"
+        result_message += f"🔢 کل ردیف‌ها: {total_rows}\n"
+        result_message += f"✅ موفق: {success_count}\n"
+        result_message += f"🔄 تکراری: {duplicate_count}\n"
+        result_message += f"❌ خطا: {error_count}\n"
+        
+        if errors:
+            result_message += "\n📋 *خطاها:*\n"
+            # Show first 5 errors max
+            for error in errors[:5]:
+                result_message += f"- {error}\n"
+            
+            if len(errors) > 5:
+                result_message += f"و {len(errors) - 5} خطای دیگر..."
         
         await status_msg.edit_text(
-            status_text,
+            result_message,
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
         )
-        
-        logger.info(f"Admin {update.effective_user.id} bulk-imported {success_count} seats, {duplicate_count} duplicates, {error_count} errors")
-        return -1
         
     except Exception as e:
-        logger.error(f"Error processing CSV file: {e}")
+        logger.error(f"Error in CSV processing: {e}")
         await status_msg.edit_text(
-            f"❌ *خطا در پردازش فایل CSV*\n\n`{str(e)[:200]}`",
+            f"❌ *خطای سیستمی در پردازش فایل*\n\n`{str(e)[:200]}`",
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
         )
-        return -1
+    
+    finally:
+        # Clean up temp file
+        try:
+            if os.path.exists(csv_file_path):
+                os.remove(csv_file_path)
+        except Exception as e:
+            logger.error(f"Error cleaning up temp file: {e}")
+    
+    return -1  # End conversation
 
 
 async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
