@@ -3131,6 +3131,12 @@ def main() -> None:
     application.add_handler(CommandHandler("broadcast", broadcast_command))
     application.add_handler(CommandHandler("help", help_command))
     
+    # Photo handler for receipts
+    application.add_handler(MessageHandler(filters.PHOTO, handle_receipt_photo))
+    
+    # Callback query handler for inline keyboards - MOVED BEFORE ConversationHandler
+    application.add_handler(CallbackQueryHandler(callback_handler))
+    
     # Admin conversation handlers
     from telegram.ext import ConversationHandler
     # Import seat editing handler
@@ -3138,8 +3144,8 @@ def main() -> None:
     
     admin_conv_handler = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(callback_handler, pattern=r'^admin:'),
-            CallbackQueryHandler(callback_handler, pattern=r'^seat:')
+            CallbackQueryHandler(callback_handler, pattern=r'^admin:(addseat|bulkcsv|price|price1)$'),
+            CallbackQueryHandler(callback_handler, pattern=r'^seat:(edit):\d+$')
         ],
         states={
             ADMIN_WAITING_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
@@ -3156,12 +3162,6 @@ def main() -> None:
         per_chat=True       # مهم: اطمینان از تفکیک مکالمات بر اساس چت
     )
     application.add_handler(admin_conv_handler)
-    
-    # Photo handler for receipts
-    application.add_handler(MessageHandler(filters.PHOTO, handle_receipt_photo))
-    
-    # Callback query handler for inline keyboards
-    application.add_handler(CallbackQueryHandler(callback_handler))
     
     # Message handler for all types of messages (lowest priority)
     application.add_handler(MessageHandler(
