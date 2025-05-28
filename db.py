@@ -178,6 +178,14 @@ def apply_migrations():
                 cur.execute("""
                 ALTER TABLE orders ADD COLUMN IF NOT EXISTS twofa_used BOOLEAN DEFAULT FALSE;
                 """)
+                
+                # Add referral system columns
+                cur.execute("""
+                -- Add referral system support
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS referrer BIGINT NULL REFERENCES users(id);
+                ALTER TABLE wallets ADD COLUMN IF NOT EXISTS referral_earned NUMERIC(12,2) DEFAULT 0;
+                """)
+                
                 conn.commit()
         logger.info("Database migrations applied successfully")
         return True

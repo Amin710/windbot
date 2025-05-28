@@ -143,7 +143,7 @@ def get_main_menu_keyboard():
         ],
         [
             InlineKeyboardButton("💰 کیف پول", callback_data="wallet"),
-            InlineKeyboardButton("🆓 اعتبار رایگان", callback_data="free_credit")
+            InlineKeyboardButton("📣 کسب اعتبار با دعوت دوستان", callback_data="menu:ref")
         ],
         [
             InlineKeyboardButton("💬 پشتیبانی", callback_data="support")
@@ -207,38 +207,72 @@ async def create_or_get_user(user):
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle the /start command, create user, process UTM, and show main menu."""
-    if not update.message:
-        return
-        
+    """Handle the /start command, create user, process UTM, and handle referrals."""
     user = update.effective_user
-    chat_id = update.effective_chat.id
     
-    # Create or get user
-    try:
-        user_id = await create_or_get_user(user)
-    except Exception as e:
-        logger.error(f"Failed to create/get user: {e}")
-        await update.message.reply_text(
-            "متأسفانه در حال حاضر با مشکلی مواجه شدیم. لطفا بعدا دوباره تلاش کنید."
-        )
-        return
+    # Check for UTM parameters or referrals in the start command
+    message_text = update.message.text if update.message else ""
+    match = re.search(r"\/start\s+(\w+)", message_text)
     
-    # Check for deep link parameter (UTM)
-    if context.args and len(context.args) > 0:
-        utm_keyword = context.args[0]
-        # Store UTM in user_data for later use
-        context.user_data['utm'] = utm_keyword
-        # Increment UTM stats
-        db.inc_utm(utm_keyword, 'starts')
-        logger.info(f"User {user_id} started bot with UTM: {utm_keyword}")
+    if match:
+        param = match.group(1)
+        
+        # Handle referral link
+        if param.startswith('ref'):
+            try:
+                ref_id = int(param[3:])  # Extract referrer id from 'ref12345'
+                
+                # Check if this is a valid user id and not self-referral
+                if ref_id != user.id:
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
+                            # Check if referrer exists
+                            cur.execute("SELECT id FROM users WHERE tg_id = %s", (ref_id,))
+                            referrer_result = cur.fetchone()
+                            
+                            if referrer_result:
+                                referrer_id = referrer_result[0]
+                                
+                                # Check if user already has a referrer
+                                cur.execute("SELECT referrer FROM users WHERE tg_id = %s", (user.id,))
+                                user_result = cur.fetchone()
+                                
+                                if user_result and user_result[0] is None:
+                                    # Set referrer if user doesn't have one
+                                    cur.execute(
+                                        "UPDATE users SET referrer = %s WHERE tg_id = %s", 
+                                        (referrer_id, user.id)
+                                    )
+                                    conn.commit()
+                                    logger.info(f"User {user.id} set referrer to {ref_id}")
+            except Exception as e:
+                logger.error(f"Error processing referral: {e}")
+        else:
+            # Treat as UTM parameter
+            utm = param
+            context.user_data['utm'] = utm
+            logger.info(f"User {user.id} started with UTM: {utm}")
+            
+            # Record UTM start in stats
+            try:
+                with db.get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO utm_stats (keyword, starts) VALUES (%s, 1) "
+                            "ON CONFLICT (keyword) DO UPDATE SET starts = utm_stats.starts + 1",
+                            (utm,)
+                        )
+                        conn.commit()
+            except Exception as e:
+                logger.error(f"Error recording UTM start: {e}")
+    
+    # Create user record if it doesn't exist
+    await create_or_get_user(user)
     
     # Send welcome message with main menu
-    support_username = db.get_setting('support_username', 'support')
     await update.message.reply_text(
         f"🌬 *به بات فروش سرویس ویند خوش آمدید*\n\n"
-        f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.\n\n"
-        f"برای راهنمایی بیشتر با پشتیبانی @{support_username} در ارتباط باشید.",
+        f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
     )
@@ -276,6 +310,9 @@ def get_admin_keyboard():
         [
             InlineKeyboardButton("🗂️ مدیریت اکانت‌ها", callback_data="admin:list"),
             InlineKeyboardButton("💵 تغییر قیمت", callback_data="admin:price")
+        ],
+        [
+            InlineKeyboardButton("🔧 تغییر قیمت یک‌ماهه", callback_data="admin:price1")
         ],
         [
             InlineKeyboardButton("💰 تغییر شماره کارت", callback_data="admin:card"),
@@ -781,7 +818,59 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await show_purchase_info(update, context)
 
 
-async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def show_subscription_options(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show available subscription options."""
+    # Get the service prices from settings
+    regular_price = int(db.get_setting('service_price', '70000'))
+    one_month_price = int(db.get_setting('one_month_price', '70000'))
+    
+    # Create formatted price displays
+    regular_price_display = f"{regular_price:,} تومان"
+    one_month_price_display = f"{one_month_price:,} تومان"
+    
+    # Create message with subscription options
+    message = (
+        f"🌬 *پلن‌های اشتراک ویندسکرایب*\n\n"
+        f"📱 *اشتراک یک‌ماهه:*\n"
+        f"💰 قیمت: *{one_month_price_display}*\n"
+        f"⏱ مدت زمان: *۱ ماه*\n"
+        f"👥 قابل اشتراک‌گذاری: *خیر*\n\n"
+        f"📲 *اشتراک کامل:*\n"
+        f"💰 قیمت: *{regular_price_display}*\n"
+        f"⏱ مدت زمان: *نامحدود*\n"
+        f"👥 قابل اشتراک‌گذاری: *بله*\n"
+        f"📱 تعداد دستگاه: *تا ۱۵ دستگاه*\n\n"
+        f"👇 لطفاً پلن مورد نظر خود را انتخاب کنید:\n"
+    )
+    
+    # Create keyboard with subscription options
+    keyboard = [
+        [
+            InlineKeyboardButton(f"📱 اشتراک یک‌ماهه - {one_month_price_display}", callback_data="buy:1mo")
+        ],
+        [
+            InlineKeyboardButton(f"📲 اشتراک کامل - {regular_price_display}", callback_data="buy:regular")
+        ],
+        [
+            InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_menu")
+        ]
+    ]
+    
+    # Send message with keyboard
+    if isinstance(update, Update) and update.callback_query:
+        await update.callback_query.edit_message_text(
+            message, 
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await update.effective_message.reply_text(
+            message, 
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE, plan_type: str = "regular") -> None:
     """Show purchase information and payment details."""
     # Get card number from settings or environment variable
     card_number = db.get_setting('card_number', CARD_NUMBER)
@@ -789,8 +878,14 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
         card_number = "شماره کارت در تنظیمات سیستم ثبت نشده است"
         logger.error("Card number not configured in settings or environment variables")
     
-    # Get service price from settings or use default value
-    amount = int(db.get_setting('service_price', '70000'))
+    # Get service price from settings based on plan type
+    if plan_type == "1mo":
+        amount = int(db.get_setting('one_month_price', '70000'))
+        plan_description = "اشتراک یک‌ماهه ویندسکرایب"
+    else:  # regular plan
+        amount = int(db.get_setting('service_price', '70000'))
+        plan_description = "اشتراک کامل ویندسکرایب"
+        
     amount_display = f"{amount:,} تومان"
     
     # Get user ID
@@ -811,15 +906,15 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # Create new pending order
                 utm_keyword = context.user_data.get('utm', None)
                 cur.execute(
-                    "INSERT INTO orders (user_id, amount, utm_keyword) VALUES (%s, %s, %s) RETURNING id",
-                    (user_id, amount, utm_keyword)
+                    "INSERT INTO orders (user_id, amount, utm_keyword, plan_type) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (user_id, amount, utm_keyword, plan_type)
                 )
                 order_id = cur.fetchone()[0]
                 
                 # Log order creation
                 cur.execute(
                     "INSERT INTO order_log (order_id, event) VALUES (%s, %s)",
-                    (order_id, "Order created")
+                    (order_id, f"Order created for {plan_type} plan")
                 )
                 conn.commit()
     except Exception as e:
@@ -836,6 +931,7 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Send payment instructions
     message = (
         f"💳 *اطلاعات پرداخت*\n\n"
+        f"🔰 نوع پلن: *{plan_description}*\n"
         f"💰 مبلغ: *{amount_display}*\n\n"
         f"💳 شماره کارت:\n`{card_number}`\n\n"
         f"✏️ به نام: *محمد محمدی*\n\n"
@@ -844,11 +940,24 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"📷 پس از پرداخت، لطفا عکس رسید پرداخت خود را ارسال کنید."
     )
     
+    # Add back button
+    keyboard = [
+        [InlineKeyboardButton("🔙 بازگشت به انتخاب پلن", callback_data="buy_service")]
+    ]
+    
     # Send message
     if isinstance(update, Update) and update.effective_message:
-        await update.effective_message.reply_text(message, parse_mode="Markdown")
+        await update.effective_message.reply_text(
+            message, 
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     elif isinstance(update, Update) and update.callback_query:
-        await update.callback_query.edit_message_text(message, parse_mode="Markdown")
+        await update.callback_query.edit_message_text(
+            message, 
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
 
 async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1023,25 +1132,30 @@ async def get_available_seat():
 async def approve_order(order_id):
     """Approve an order and assign a seat."""
     try:
-        # Get an available seat
-        seat = await get_available_seat()
-        if not seat:
-            return False, "خطا: هیچ صندلی خالی برای تخصیص وجود ندارد"
-        
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                # Get order details for UTM tracking
+                # Get order details
                 cur.execute(
-                    "SELECT user_id, amount, utm_keyword FROM orders WHERE id = %s",
+                    "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer FROM orders o "
+                    "JOIN users u ON o.user_id = u.id "
+                    "WHERE o.id = %s AND o.status = 'pending'",
                     (order_id,)
                 )
-                result = cur.fetchone()
-                if not result:
+                order = cur.fetchone()
+                
+                if not order:
+                    logger.error(f"Order {order_id} not found or not pending")
                     return False, "خطا: سفارش یافت نشد"
                     
-                user_id, amount, utm_keyword = result
+                user_id, amount, utm_keyword, tg_id, referrer_id = order
                 
-                # Update order
+                # Get an available seat
+                seat = await get_available_seat()
+                if not seat:
+                    logger.error(f"No available seats for order {order_id}")
+                    return False, "خطا: هیچ صندلی خالی برای تخصیص وجود ندارد"
+                
+                # Update order status and assign seat
                 cur.execute(
                     "UPDATE orders SET status = 'approved', seat_id = %s, approved_at = %s "
                     "WHERE id = %s",
@@ -1054,13 +1168,27 @@ async def approve_order(order_id):
                     (order_id, "Order approved")
                 )
                 
-                # Get user's Telegram ID for notification
-                cur.execute("SELECT tg_id FROM users WHERE id = %s", (user_id,))
-                tg_id_result = cur.fetchone()
-                if not tg_id_result:
-                    return False, "خطا: کاربر یافت نشد"
+                # Process referral commission if user has a referrer
+                if referrer_id is not None:
+                    # Calculate 10% commission
+                    commission = float(amount) * 0.10
                     
-                tg_id = tg_id_result[0]
+                    # Credit the referrer's wallet
+                    cur.execute(
+                        "UPDATE wallets SET balance = balance + %s, "
+                        "referral_earned = referral_earned + %s "
+                        "WHERE user_id = %s",
+                        (commission, commission, referrer_id)
+                    )
+                    
+                    # Log the referral commission
+                    logger.info(f"Credited referrer {referrer_id} with {commission} for order {order_id}")
+                    
+                    # Add a log entry for the referral commission
+                    cur.execute(
+                        "INSERT INTO order_log (order_id, event) VALUES (%s, %s)",
+                        (order_id, f"Referral commission of {commission} credited to user {referrer_id}")
+                    )
                 
                 # Update UTM stats if keyword exists
                 if utm_keyword:
@@ -1437,57 +1565,9 @@ async def handle_change_price(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def process_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Process the price input message."""
-    message_text = update.message.text.strip()
-    
-    # Check if we're expecting a price input
-    if not context.user_data.get('awaiting_price', False):
-        return -1
-    
-    # Clear the flag immediately to ensure it's cleared even if errors occur
-    context.user_data.pop('awaiting_price', None)
-    
-    try:
-        # Parse and validate the price
-        price = int(message_text)
-        if price <= 0:
-            await update.message.reply_text(
-                "❌ *خطا: قیمت باید عدد مثبت باشد*",
-                parse_mode="Markdown",
-                reply_markup=get_admin_keyboard()
-            )
-            return -1
-        
-        # Store the price in settings
-        db.set_setting('service_price', str(price))
-        
-        # Format the price with Persian style
-        formatted_price = f"{price:,}"
-        
-        # Confirm the change
-        await update.message.reply_text(
-            f"✅ *قیمت سرویس به {formatted_price} تومان تغییر کرد*",
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-        
-        logger.info(f"Admin {update.effective_user.id} changed service price to {price} tomans")
-        return -1
-        
-    except ValueError:
-        await update.message.reply_text(
-            "❌ *خطا: لطفاً یک عدد صحیح وارد کنید*",
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-        return -1
-    except Exception as e:
-        logger.error(f"Error changing service price: {e}")
-        await update.message.reply_text(
-            f"❌ *خطا در تغییر قیمت سرویس*\n\n`{str(e)[:200]}`",
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-        return -1
+    # Import the price input handler from the module
+    from handlers.admin_price import process_price_input as handle_price_input
+    return await handle_price_input(update, context)
 
 
 async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1803,12 +1883,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     user = update.effective_user
     
     if data == "buy_service":
-        # Handle buy service button
-        await show_purchase_info(update, context)
+        # Show subscription options
+        await show_subscription_options(update, context)
+        
+    elif data.startswith("buy:"):
+        # Extract plan type from callback data
+        plan_type = data.split(":")[1]
+        
+        # Show purchase info for the selected plan
+        await show_purchase_info(update, context, plan_type)
         
     elif data == "wallet":
         # Handle wallet button
         await show_wallet(update, context)
+        
+    elif data == "menu:ref":
+        # Handle referral menu
+        from handlers.referral import show_referral_menu
+        await show_referral_menu(update, context)
         
     elif data == "manage_service":
         # Handle manage service button
@@ -1874,7 +1966,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
         elif admin_action == "price":
             # Change service price
-            await handle_change_price(update, context)
+            from handlers.admin_price import handle_change_price
+            await handle_change_price(update, context, "service_price")
+            
+        elif admin_action == "price1":
+            # Change one-month price
+            from handlers.admin_price import handle_change_price
+            await handle_change_price(update, context, "one_month_price")
             
         elif admin_action == "utm":
             # Show UTM statistics
@@ -2147,8 +2245,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     twofa_used = result[0]
                     
                     if twofa_used:
-                        # Code has already been used
-                        await query.answer("کد قبلاً دریافت شده است. امکان استفاده مجدد وجود ندارد.", show_alert=True)
+                        # Code has already been used - just show alert, don't edit message
+                        await query.answer("کد قبلاً دریافت شده.", show_alert=True)
                         return
                     
                     # Get seat ID and secret for this order
@@ -2169,28 +2267,28 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     
                     secret_enc = result[0]
                     
-                    # Mark twofa as used
+                    # Decrypt secret
+                    secret = decrypt(secret_enc)
+                    
+                    # Generate TOTP code
+                    import pyotp
+                    import time
+                    
+                    totp = pyotp.TOTP(secret)
+                    code = totp.now()
+                    
+                    # Calculate remaining seconds until code expires
+                    remaining_seconds = 30 - (int(time.time()) % 30)
+                    
+                    # Mark twofa as used AFTER generating the code
                     cur.execute("UPDATE orders SET twofa_used = TRUE WHERE id = %s", (order_id,))
                     conn.commit()
             
-            # Decrypt secret
-            secret = decrypt(secret_enc)
-            
-            # Generate TOTP code
-            import pyotp
-            import time
-            
-            totp = pyotp.TOTP(secret)
-            code = totp.now()
-            
-            # Calculate remaining seconds until code expires
-            remaining_seconds = 30 - (int(time.time()) % 30)
-            
-            # Show alert with code and TTL
-            await query.answer(
-                f"{code} \u2014 اعتبار {remaining_seconds} ثانیه",
-                show_alert=True
-            )
+                    # Show alert with code and TTL
+                    await query.answer(
+                        f"{code} \u2014 اعتبار {remaining_seconds} ثانیه",
+                        show_alert=True
+                    )
             
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
