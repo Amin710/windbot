@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-test
 Wind Reseller Telegram Bot
 
 A Telegram bot for reselling Wind VPN service accounts.
@@ -14,33 +13,22 @@ This bot allows users to:
 Features:
 - Secure credential storage with Fernet encryption
 - PostgreSQL database backend for user and order management
-- Admin panel for order approval/rejection
-- Multi-language support (Persian/English)
-- Receipt verification workflow
-- UTM parameter tracking for marketing campaigns
-
-Usage:
-    python bot.py
-
-Requires:
-    - PostgreSQL database
-    - Telegram Bot API token
-    - Fernet encryption key
-    - Receipt channel for admin approval
 """
-import asyncio
-import base64
-import datetime
-import logging
-import os
-import re
+
 import csv
-import pytz
+import io
+import os
+import logging
 import pyotp
-import psycopg2
-import tempfile
-import subprocess
-from tabulate import tabulate
+import random
+import re
+import time
+import base64
+import json
+import asyncio
+import traceback
+import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional, Union, Tuple, List, Any
 
@@ -59,11 +47,41 @@ from telegram.ext import (
     filters,
 )
 
-# Import our database module
 import db
 
-# Load environment variables
-load_dotenv()
+# Import enhanced debug logger
+try:
+    from debug_logger import log_exception, log_function_call, log_telegram_update, logger
+    ENHANCED_LOGGING = True
+    print("Enhanced logging enabled")
+except ImportError:
+    # Configure basic logging if debug_logger is not available
+    logging.basicConfig(
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+        level=logging.INFO
+    )
+    logger = logging.getLogger(__name__)
+    ENHANCED_LOGGING = False
+    print("Using basic logging - debug_logger module not found")
+    
+    # Define dummy decorators
+    def log_function_call(func):
+        return func
+        
+    def log_exception(e, context=None):
+        logger.error(f"Exception: {e}\nContext: {context}")
+        return str(e)
+        
+    def log_telegram_update(update):
+        if update.message:
+            logger.info(f"Message from {update.effective_user.id}: {update.message.text if update.message.text else '[Media]'}")
+        elif update.callback_query:
+            logger.info(f"Callback from {update.effective_user.id}: {update.callback_query.data}")
+
+# Create logs directory if it doesn't exist
+LOG_DIR = "logs"
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
 # Configure logging
 logging.basicConfig(
@@ -2691,10 +2709,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         parse_mode="Markdown"
                     )
         except Exception as e:
-            logger.error(f"Error generating 2FA code: {e}")
-            await query.edit_message_text(
-                f"❌ خطا در تولید کد 2FA: {str(e)}"
-            )
+            logger.error(f"Error generating TOTP code: {e}")
+            await query.answer("خطا در تولید کد", show_alert=True)
             
     # Handle seat operations
     elif data.startswith("seat:"):
@@ -2792,18 +2808,111 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
                     # Show alert with code and TTL
                     await query.answer(
-                        f"{code} \u2014 اعتبار {remaining_seconds} ثانیه",
+                        f"{code} — اعتبار {remaining_seconds} ثانیه",
                         show_alert=True
                     )
-            
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
+            # Log detailed error information using the enhanced logger
+            if ENHANCED_LOGGING:
+                log_exception(e, {"order_id": order_id, "callback_data": data})
             await query.answer("خطا در تولید کد", show_alert=True)
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log errors caused by Updates."""
-    logger.error(f"Exception while handling an update: {context.error}")
+    """Log the error and send a telegram message to notify the developer."""
+    # Get the exception
+    error = context.error
+    
+    # Record full stack trace and context
+    error_context = {}
+    
+    # Safely extract information from update
+    try:
+        if update:
+            error_context["update_id"] = update.update_id if hasattr(update, "update_id") else None
+            error_context["user_id"] = update.effective_user.id if hasattr(update, "effective_user") and update.effective_user else None
+            error_context["chat_id"] = update.effective_chat.id if hasattr(update, "effective_chat") and update.effective_chat else None
+            
+            # Add callback data if present
+            if hasattr(update, "callback_query") and update.callback_query:
+                error_context["callback_data"] = update.callback_query.data
+            
+            # Add message text or document if present
+            if hasattr(update, "message") and update.message:
+                if update.message.text:
+                    error_context["message_text"] = update.message.text
+                elif update.message.document:
+                    error_context["document_filename"] = update.message.document.file_name
+    except Exception as context_error:
+        error_context["context_extraction_error"] = str(context_error)
+    
+    # Try to safely get user data
+    try:
+        if hasattr(context, "user_data") and context.user_data:
+            error_context["user_data"] = dict(context.user_data)
+    except Exception as user_data_error:
+        error_context["user_data_error"] = str(user_data_error)
+    
+    # Use enhanced logging if available
+    if ENHANCED_LOGGING:
+        error_details = log_exception(error, error_context)
+    else:
+        # Basic logging
+        logger.error("Exception while handling an update:", exc_info=error)
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        stack_trace = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        error_details = f"Error: {str(error)}\nStack Trace: {''.join(stack_trace)}"
+        
+    # Format error message for admin notification
+    error_message = f"⚠️ *خطای سیستمی*\n\n"
+    
+    # Add user information
+    if hasattr(update, "effective_user") and update.effective_user:
+        user = update.effective_user
+        error_message += f"👤 کاربر: {user.full_name} (@{user.username})\n"
+        error_message += f"🆔 آیدی: `{user.id}`\n\n"
+    
+    # Add error type and message
+    error_message += f"❌ نوع خطا: `{error.__class__.__name__}`\n"
+    error_message += f"📝 پیام خطا: `{str(error)[:100]}`\n\n"
+    
+    # Add context of where error occurred
+    if hasattr(update, "callback_query") and update.callback_query:
+        error_message += f"🔄 Callback: `{update.callback_query.data}`\n"
+    elif hasattr(update, "message") and update.message:
+        if update.message.text:
+            error_message += f"💬 پیام: `{update.message.text[:50]}`\n"
+        elif update.message.document:
+            error_message += f"📎 فایل: `{update.message.document.file_name}`\n"
+    
+    # Add timestamp
+    error_message += f"⏰ زمان: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n"
+    
+    # Add log file location
+    error_message += f"📂 فایل لاگ: `{os.path.join(LOG_DIR, 'error.log')}`"
+    
+    # Try to notify admin
+    try:
+        admin_id = os.environ.get("ADMIN_ID")
+        if admin_id:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=error_message,
+                parse_mode="Markdown"
+            )
+    except Exception as notify_error:
+        logger.error(f"Failed to notify admin about error: {notify_error}")
+        
+    # If this was from a user, inform them about the error
+    try:
+        if hasattr(update, "effective_chat") and update.effective_chat:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="\u274c خطایی در سیستم رخ داده است. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید."
+            )
+    except Exception as inform_error:
+        logger.error(f"Failed to inform user about error: {inform_error}")
 
 
 def main() -> None:
