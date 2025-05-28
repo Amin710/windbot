@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: wind_reseller
       POSTGRES_USER: winduser
-      POSTGRES_PASSWORD: windpassword
+      POSTGRES_PASSWORD: 2H8z0MhL7tZpk6p6
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
@@ -33,7 +33,7 @@ services:
     env_file:
       - .env
     environment:
-      DB_URI: postgresql://winduser:windpassword@db:5432/wind_reseller
+      DB_URI: postgresql://winduser:2H8z0MhL7tZpk6p6@db:5432/wind_reseller
     volumes:
       - ./:/app
     networks:
