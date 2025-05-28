@@ -167,6 +167,25 @@ def table_exists(table_name):
         return False
 
 
+def apply_migrations():
+    """
+    Apply any pending database migrations.
+    """
+    try:
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                # Add twofa_used column to orders table if it doesn't exist
+                cur.execute("""
+                ALTER TABLE orders ADD COLUMN IF NOT EXISTS twofa_used BOOLEAN DEFAULT FALSE;
+                """)
+                conn.commit()
+        logger.info("Database migrations applied successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error applying migrations: {e}")
+        return False
+
+
 def init_db():
     """
     Initialize the database by applying schema.sql if tables don't exist.
@@ -174,6 +193,8 @@ def init_db():
     # Check if at least one of our tables exists
     if table_exists('users'):
         logger.info("Database already initialized")
+        # Apply any pending migrations
+        apply_migrations()
         return True
     
     try:

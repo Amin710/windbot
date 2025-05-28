@@ -266,29 +266,28 @@ def get_admin_keyboard():
     """Create admin panel keyboard."""
     keyboard = [
         [
-            InlineKeyboardButton("➕ افزودن اکانت", callback_data="admin:addseat"),
-            InlineKeyboardButton("📂 افزودن گروهی (CSV)", callback_data="admin:bulkcsv"),
-            InlineKeyboardButton("💲 تغییر قیمت سرویس", callback_data="admin:price")
+            InlineKeyboardButton("📊 آمار", callback_data="admin:stats"),
+            InlineKeyboardButton("📢 ارسال گروهی", callback_data="admin:broadcast")
         ],
         [
-            InlineKeyboardButton("تغییر کارت", callback_data="admin:card"),
-            InlineKeyboardButton("تغییر قیمت دلار", callback_data="admin:usd")
+            InlineKeyboardButton("➕ افزودن صندلی", callback_data="admin:addseat"),
+            InlineKeyboardButton("📑 لیست اکانت‌ها", callback_data="admin:listcsv")
         ],
         [
-            InlineKeyboardButton("آمار", callback_data="admin:stats"),
-            InlineKeyboardButton("بکاپ دیتابیس", callback_data="admin:backup")
+            InlineKeyboardButton("🗂️ مدیریت اکانت‌ها", callback_data="admin:list"),
+            InlineKeyboardButton("💵 تغییر قیمت", callback_data="admin:price")
         ],
         [
-            InlineKeyboardButton("لینک‌های UTM", callback_data="admin:utm"),
-            InlineKeyboardButton("بردکست", callback_data="admin:broadcast")
+            InlineKeyboardButton("💰 تغییر شماره کارت", callback_data="admin:card"),
+            InlineKeyboardButton("📥 CSV گروهی", callback_data="admin:bulkcsv")
         ],
         [
-            InlineKeyboardButton("یوزرها", callback_data="admin:users"),
-            InlineKeyboardButton("حذف سرویس", callback_data="admin:delete_service")
+            InlineKeyboardButton("💹 آمار UTM", callback_data="admin:utm"),
+            InlineKeyboardButton("🗄️ بکاپ دیتابیس", callback_data="admin:backup")
         ],
         [
-            InlineKeyboardButton("غیرفعال کارت", callback_data="admin:disable_card"),
-            InlineKeyboardButton("غیرفعال کریپتو", callback_data="admin:disable_crypto")
+            InlineKeyboardButton("غیرفعال‌سازی کارت", callback_data="admin:disable_card"),
+            InlineKeyboardButton("غیرفعال‌سازی کریپتو", callback_data="admin:disable_crypto")
         ],
         [
             InlineKeyboardButton("فعال‌سازی درگاه", callback_data="admin:enable_gateway")
@@ -1125,6 +1124,7 @@ ADMIN_WAITING_USD_RATE = 2
 ADMIN_WAITING_SEAT_INFO = 3
 ADMIN_WAITING_CSV = 4
 ADMIN_WAITING_PRICE = 5
+ADMIN_WAITING_EDIT_SEAT = 6
 
 
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1265,6 +1265,94 @@ async def handle_bulk_csv(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ADMIN_WAITING_CSV
 
 
+async def handle_list_csv(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Generate and send a CSV file with active seat information."""
+    query = update.callback_query
+    user = update.effective_user
+    
+    # Check if user is admin
+    is_admin = await check_admin(user.id)
+    if not is_admin:
+        await query.edit_message_text("شما دسترسی ادمین ندارید.")
+        return
+    
+    try:
+        # Update status message
+        status_msg = await query.edit_message_text(
+            "⏳ *در حال تهیه لیست اکانت‌ها...*",
+            parse_mode="Markdown"
+        )
+        
+        # Get all active seats with available slots
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT email, pass_enc, secret_enc, max_slots-sold AS free_slots "
+                    "FROM seats WHERE status='active'"
+                )
+                seats = cur.fetchall()
+                
+                # Calculate total free slots
+                total_free_slots = sum(seat[3] for seat in seats)
+        
+        # Generate CSV file
+        import io
+        import csv
+        from datetime import datetime
+        
+        # Create CSV in memory
+        csv_buffer = io.StringIO()
+        csv_writer = csv.writer(csv_buffer)
+        
+        # Write header
+        csv_writer.writerow(['email', 'password', 'secret', 'free_slots'])
+        
+        # Write data rows
+        for seat in seats:
+            email = seat[0]
+            password = decrypt_secret(seat[1])  # Decrypt password
+            secret = decrypt_secret(seat[2])    # Decrypt secret
+            free_slots = seat[3]
+            
+            csv_writer.writerow([email, password, secret, free_slots])
+        
+        # Get the CSV content
+        csv_content = csv_buffer.getvalue()
+        csv_buffer.close()
+        
+        # Create a bytes buffer from the CSV content
+        bytes_buffer = io.BytesIO(csv_content.encode('utf-8'))
+        
+        # Generate filename with current date
+        current_date = datetime.now().strftime("%Y%m%d")
+        filename = f"seats_{current_date}.csv"
+        
+        # Send the CSV file
+        await context.bot.send_document(
+            chat_id=user.id,
+            document=bytes_buffer,
+            filename=filename,
+            caption=f"صندلی خالی: {total_free_slots}"
+        )
+        
+        # Update status message
+        await status_msg.edit_text(
+            f"✅ *لیست اکانت‌ها با موفقیت ارسال شد*\n\n"
+            f"🗂️ تعداد کل اکانت‌ها: {len(seats)}\n"
+            f"💺 صندلی‌های خالی: {total_free_slots}",
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating CSV list: {e}")
+        await query.edit_message_text(
+            "❌ *خطا در تهیه لیست اکانت‌ها*\n\n"
+            f"`{str(e)[:200]}`",
+            parse_mode="Markdown",
+            reply_markup=get_admin_keyboard()
+        )
+
 async def handle_utm_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show UTM tracking statistics."""
     query = update.callback_query
@@ -1355,7 +1443,7 @@ async def process_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not context.user_data.get('awaiting_price', False):
         return -1
     
-    # Clear the flag
+    # Clear the flag immediately to ensure it's cleared even if errors occur
     context.user_data.pop('awaiting_price', None)
     
     try:
@@ -1408,7 +1496,7 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not context.user_data.get('awaiting_csv', False):
         return -1
     
-    # Clear the flag
+    # Clear the flag immediately to prevent issues in case of errors
     context.user_data.pop('awaiting_csv', None)
     
     # Get the document
@@ -1474,14 +1562,15 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         secret = row['secret'].strip()
                         
                         # Get slots (optional)
-                        max_slots = 15  # Default
-                        if 'slots' in row and row['slots'].strip():
+                        max_slots = 15  # Default - always use 15 if slots column is missing or invalid
+                        if 'slots' in row and row['slots'] and row['slots'].strip():
                             try:
                                 max_slots = int(row['slots'].strip())
                                 if max_slots <= 0:
                                     max_slots = 15
                             except ValueError:
-                                pass  # Use default if conversion fails
+                                # Use default if conversion fails
+                                max_slots = 15
                         
                         # Validate email
                         if '@' not in email:
@@ -1569,11 +1658,12 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not context.user_data.get('awaiting_single_seat', False):
         return -1
     
-    # Clear the flag
+    # Clear the flag (always clear, even if there's an error)
     context.user_data.pop('awaiting_single_seat', None)
     
-    # Parse the input
-    parts = message_text.split()
+    # Parse the input - split into maximum 4 parts (email, password, secret, slots)
+    # This allows password and secret to contain spaces
+    parts = message_text.split(maxsplit=3)
     if len(parts) < 3:
         await update.message.reply_text(
             "❌ *خطا: فرمت نامعتبر*\n\n"
@@ -1587,8 +1677,19 @@ async def process_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Extract the parts
         email = parts[0]
         password = parts[1]
-        secret = parts[2]
-        max_slots = int(parts[3]) if len(parts) > 3 else 15
+        
+        # For the last part, check if it contains both secret and slots
+        if len(parts) == 4:
+            secret = parts[2]
+            try:
+                max_slots = int(parts[3])
+            except ValueError:
+                # If the last part isn't a valid integer, treat it as part of the secret
+                secret = parts[2] + ' ' + parts[3]
+                max_slots = 15
+        else:
+            secret = parts[2]
+            max_slots = 15
         
         # Validate email
         if '@' not in email:
@@ -1779,6 +1880,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             # Show UTM statistics
             await handle_utm_stats(update, context)
             
+        elif admin_action == "listcsv":
+            # Generate and send CSV list of accounts
+            await handle_list_csv(update, context)
+            
+        elif admin_action == "list" or admin_action.startswith("list|"):
+            # Handle account management list with pagination
+            from handlers.admin_accounts import handle_accounts_list
+            
+            # Check if page number is specified
+            page = 1
+            if "|" in admin_action:
+                try:
+                    page = int(admin_action.split("|")[1])
+                except (ValueError, IndexError):
+                    page = 1
+            
+            await handle_accounts_list(update, context, page)
+            
         # Other admin actions would be handled here
     
     # Handle order approval
@@ -1820,7 +1939,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"🎉 *سفارش شماره #{order_id} تایید شد*\n\n"
                 f"📧 ایمیل: `{email}`\n"
                 f"🔑 رمز عبور: `{password}`\n\n"
-                f"✅ از دکمه زیر برای دریافت کد 2FA استفاده کنید.\n\n"
+                f"✅ از دکمه زیر برای دریافت کد 2FA استفاده کنید.\n"
+                f"*فقط یک‌بار می‌توانید از دکمه زیر استفاده کنید – اعتبار کد ۳۰ ثانیه است.*\n\n"
                 f"❌ لطفا اطلاعات حساب خود را با احتیاط نگهداری کنید."
             )
             
@@ -1972,22 +2092,86 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"❌ خطا در تولید کد 2FA: {str(e)}"
             )
             
+    # Handle seat operations
+    elif data.startswith("seat:"):
+        # Handle seat operations (delete, edit, info)
+        parts = data.split(":")
+        if len(parts) < 3:
+            await query.answer("درخواست نامعتبر", show_alert=True)
+            return
+            
+        action = parts[1]
+        seat_id = int(parts[2])
+        
+        # Import account management handlers
+        from handlers.admin_accounts import handle_seat_delete, handle_seat_edit_prompt
+        
+        if action == "del":
+            # Handle seat deletion
+            await handle_seat_delete(update, context, seat_id)
+        elif action == "edit":
+            # Handle seat editing
+            await handle_seat_edit_prompt(update, context, seat_id)
+        elif action == "info":
+            # Show seat info (currently redirects to edit for simplicity)
+            await handle_seat_edit_prompt(update, context, seat_id)
+
+    # Handle admin back button
+    elif data == "admin:back":
+        # Return to admin panel
+        await query.edit_message_text(
+            f"💻 *پنل مدیریت*\n\n"
+            f"به پنل مدیریت بات خوش آمدید.\n"
+            f"لطفا گزینه مورد نظر خود را انتخاب کنید:",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+
     # Handle quick TOTP code generation (alert style)
     elif data.startswith("code:"):
-        # Extract secret ID from callback data
-        secret_id = data.split(":")[1]
+        # Extract order ID from callback data
+        order_id = data.split(":")[1]
         
         try:
-            # Get and decrypt secret
+            # Check if code has already been used for this order
             with db.get_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT secret_enc FROM seats WHERE id = %s", (secret_id,))
+                    # First check if twofa_used is TRUE
+                    cur.execute("SELECT twofa_used FROM orders WHERE id = %s", (order_id,))
+                    result = cur.fetchone()
+                    
+                    if not result:
+                        await query.answer("خطا: سفارش یافت نشد", show_alert=True)
+                        return
+                        
+                    twofa_used = result[0]
+                    
+                    if twofa_used:
+                        # Code has already been used
+                        await query.answer("کد قبلاً دریافت شده است. امکان استفاده مجدد وجود ندارد.", show_alert=True)
+                        return
+                    
+                    # Get seat ID and secret for this order
+                    cur.execute("SELECT seat_id FROM orders WHERE id = %s", (order_id,))
+                    result = cur.fetchone()
+                    if not result or not result[0]:
+                        await query.answer("خطا: اطلاعات صندلی یافت نشد", show_alert=True)
+                        return
+                        
+                    seat_id = result[0]
+                    
+                    # Get the secret for the seat
+                    cur.execute("SELECT secret_enc FROM seats WHERE id = %s", (seat_id,))
                     result = cur.fetchone()
                     if not result:
-                        await query.answer("خطا: اطلاعات یافت نشد", show_alert=True)
+                        await query.answer("خطا: اطلاعات رمز یافت نشد", show_alert=True)
                         return
                     
                     secret_enc = result[0]
+                    
+                    # Mark twofa as used
+                    cur.execute("UPDATE orders SET twofa_used = TRUE WHERE id = %s", (order_id,))
+                    conn.commit()
             
             # Decrypt secret
             secret = decrypt(secret_enc)
@@ -2040,14 +2224,22 @@ def main() -> None:
     
     # Admin conversation handlers
     from telegram.ext import ConversationHandler
+    # Import seat editing handler
+    from handlers.admin_accounts import process_seat_edit
+    
     admin_conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(callback_handler, pattern=r'^admin:')],
+        entry_points=[
+            CallbackQueryHandler(callback_handler, pattern=r'^admin:'),
+            CallbackQueryHandler(callback_handler, pattern=r'^seat:')
+        ],
         states={
             ADMIN_WAITING_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
             ADMIN_WAITING_USD_RATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
             ADMIN_WAITING_SEAT_INFO: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_add_seat)],
             ADMIN_WAITING_CSV: [MessageHandler(filters.Document.ALL, process_csv_upload)],
             ADMIN_WAITING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_price_input)],
+            # Add handler for seat editing
+            ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_seat_edit)],
         },
         fallbacks=[CommandHandler("cancel", lambda u, c: -1)],
         name="admin_conversation"
