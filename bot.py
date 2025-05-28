@@ -2919,20 +2919,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Handle admin back button
     elif data == "admin:back":
-        # Check if user is admin
-        is_admin = await check_admin(user.id)
-        if not is_admin:
-            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
-            return
-        
-        # Return to admin panel
-        await query.edit_message_text(
-            f"💻 *پنل مدیریت*\n\n"
-            f"به پنل مدیریت بات خوش آمدید.\n"
-            f"لطفا گزینه مورد نظر خود را انتخاب کنید:",
-            reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
-        )
+        try:
+            # Check if user is admin
+            is_admin = await check_admin(user.id)
+            if not is_admin:
+                await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+                return
+            
+            # Return to admin panel
+            await query.edit_message_text(
+                f"💻 *پنل مدیریت*\n\n"
+                f"به پنل مدیریت بات خوش آمدید.\n"
+                f"لطفا گزینه مورد نظر خود را انتخاب کنید:",
+                reply_markup=get_admin_keyboard(),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Error in admin:back callback: {e}")
+            await query.answer(f"خطا: {str(e)[:100]}", show_alert=True)
 
     # Handle quick TOTP code generation (alert style)
     elif data.startswith("code:"):
