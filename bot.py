@@ -1295,23 +1295,23 @@ async def approve_order(order_id):
                     logger.error(f"Order {order_id} not found in database")
                     return False, "خطا: سفارش یافت نشد"
                 
-                # If order exists but is not in pending status, give specific error
-                if order_check[0] != 'pending':
-                    logger.error(f"Order {order_id} exists but status is '{order_check[0]}', not 'pending'")
-                    return False, f"خطا: سفارش در وضعیت '{order_check[0]}' است، نه 'pending'"
+                # If order exists but is not in pending or receipt status, give specific error
+                if order_check[0] not in ('pending', 'receipt'):
+                    logger.error(f"Order {order_id} exists but status is '{order_check[0]}', not 'pending' or 'receipt'")
+                    return False, f"خطا: سفارش در وضعیت '{order_check[0]}' است، نه قابل تایید"
                 
                 # Get order details
                 cur.execute(
                     "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer FROM orders o "
                     "JOIN users u ON o.user_id = u.id "
-                    "WHERE o.id = %s AND o.status = 'pending'",
+                    "WHERE o.id = %s AND o.status IN ('pending', 'receipt')",
                     (order_id,)
                 )
                 order = cur.fetchone()
                 
                 if not order:
-                    logger.error(f"Order {order_id} not found or not pending")
-                    return False, "خطا: سفارش یافت نشد"
+                    logger.error(f"Order {order_id} not found or not in pending/receipt status")
+                    return False, "خطا: سفارش یافت نشد یا در وضعیت قابل تایید نیست"
                     
                 user_id, amount, utm_keyword, tg_id, referrer_id = order
                 
