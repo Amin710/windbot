@@ -115,24 +115,23 @@ def encrypt(text: Union[str, bytes]) -> bytes:
     return FERNET.encrypt(text)
 
 
-def decrypt(token: bytes) -> str:
-    """
-    Decrypt bytes using Fernet symmetric encryption.
-    
-    Args:
-        token: Encrypted bytes to decrypt
-        
-    Returns:
-        Decrypted string
-        
-    Raises:
-        ValueError: If decryption fails
-    """
+def decrypt_secret(token) -> str:
+    """Decrypt Fernet token to plain string, accepting bytes, memoryview or str."""
+    if isinstance(token, memoryview):
+        token = token.tobytes()
+    elif isinstance(token, str):
+        token = token.encode()
     try:
         return FERNET.decrypt(token).decode()
     except InvalidToken as e:
         logger.error(f"Failed to decrypt: {e}")
         raise ValueError("Failed to decrypt data") from e
+
+
+# Keep the old function for backwards compatibility
+def decrypt(token: bytes) -> str:
+    """Decrypt bytes using Fernet symmetric encryption (legacy version)."""
+    return decrypt_secret(token)
 
 
 def get_main_menu_keyboard():
