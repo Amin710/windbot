@@ -820,36 +820,26 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def show_subscription_options(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show available subscription options."""
-    # Get the service prices from settings
-    regular_price = int(db.get_setting('service_price', '70000'))
+    # Get the one-month price from settings
     one_month_price = int(db.get_setting('one_month_price', '70000'))
     
-    # Create formatted price displays
-    regular_price_display = f"{regular_price:,} تومان"
+    # Create formatted price display
     one_month_price_display = f"{one_month_price:,} تومان"
     
-    # Create message with subscription options
+    # Create message with subscription features
     message = (
-        f"🌬 *پلن‌های اشتراک ویندسکرایب*\n\n"
-        f"📱 *اشتراک یک‌ماهه:*\n"
-        f"💰 قیمت: *{one_month_price_display}*\n"
-        f"⏱ مدت زمان: *۱ ماه*\n"
-        f"👥 قابل اشتراک‌گذاری: *خیر*\n\n"
-        f"📲 *اشتراک کامل:*\n"
-        f"💰 قیمت: *{regular_price_display}*\n"
-        f"⏱ مدت زمان: *نامحدود*\n"
-        f"👥 قابل اشتراک‌گذاری: *بله*\n"
-        f"📱 تعداد دستگاه: *تا ۱۵ دستگاه*\n\n"
-        f"👇 لطفاً پلن مورد نظر خود را انتخاب کنید:\n"
+        f"🥇 *ویژگی‌های اکانت ویندسکرایب یک‌ماهه (تک‌کاربره):*\n\n"
+        f"• اتصال سریع و پایدار\n"
+        f"• بدون محدودیت حجم مصرفی\n"
+        f"• قابل استفاده روی *یک دستگاه*\n"
+        f"• مدت زمان: *۱ ماه*\n"
+        f"• قیمت: *{one_month_price_display}*\n\n"
     )
     
-    # Create keyboard with subscription options
+    # Create keyboard with only one-month subscription option
     keyboard = [
         [
-            InlineKeyboardButton(f"📱 اشتراک یک‌ماهه - {one_month_price_display}", callback_data="buy:1mo")
-        ],
-        [
-            InlineKeyboardButton(f"📲 اشتراک کامل - {regular_price_display}", callback_data="buy:regular")
+            InlineKeyboardButton(f"💳 خرید ویندسکرایب یک‌ماهه", callback_data="buy:1mo")
         ],
         [
             InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_menu")
@@ -870,7 +860,7 @@ async def show_subscription_options(update: Update, context: ContextTypes.DEFAUL
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE, plan_type: str = "regular") -> None:
+async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show purchase information and payment details."""
     # Get card number from settings or environment variable
     card_number = db.get_setting('card_number', CARD_NUMBER)
@@ -878,14 +868,9 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE,
         card_number = "شماره کارت در تنظیمات سیستم ثبت نشده است"
         logger.error("Card number not configured in settings or environment variables")
     
-    # Get service price from settings based on plan type
-    if plan_type == "1mo":
-        amount = int(db.get_setting('one_month_price', '70000'))
-        plan_description = "اشتراک یک‌ماهه ویندسکرایب"
-    else:  # regular plan
-        amount = int(db.get_setting('service_price', '70000'))
-        plan_description = "اشتراک کامل ویندسکرایب"
-        
+    # Get one-month price from settings
+    amount = int(db.get_setting('one_month_price', '70000'))
+    plan_description = "اشتراک یک‌ماهه ویندسکرایب"
     amount_display = f"{amount:,} تومان"
     
     # Get user ID
@@ -906,15 +891,15 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE,
                 # Create new pending order
                 utm_keyword = context.user_data.get('utm', None)
                 cur.execute(
-                    "INSERT INTO orders (user_id, amount, utm_keyword, plan_type) VALUES (%s, %s, %s, %s) RETURNING id",
-                    (user_id, amount, utm_keyword, plan_type)
+                    "INSERT INTO orders (user_id, amount, utm_keyword) VALUES (%s, %s, %s) RETURNING id",
+                    (user_id, amount, utm_keyword)
                 )
                 order_id = cur.fetchone()[0]
                 
                 # Log order creation
                 cur.execute(
                     "INSERT INTO order_log (order_id, event) VALUES (%s, %s)",
-                    (order_id, f"Order created for {plan_type} plan")
+                    (order_id, "Order created for one-month plan")
                 )
                 conn.commit()
     except Exception as e:
@@ -1886,12 +1871,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Show subscription options
         await show_subscription_options(update, context)
         
-    elif data.startswith("buy:"):
-        # Extract plan type from callback data
-        plan_type = data.split(":")[1]
-        
-        # Show purchase info for the selected plan
-        await show_purchase_info(update, context, plan_type)
+    elif data == "buy:1mo":
+        # Show purchase info for one-month plan
+        await show_purchase_info(update, context)
         
     elif data == "wallet":
         # Handle wallet button
