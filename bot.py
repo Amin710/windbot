@@ -1907,7 +1907,7 @@ async def handle_change_price(update: Update, context: ContextTypes.DEFAULT_TYPE
         return -1
     
     # Get current price
-    current_price = db.get_setting('service_price', '70000')
+    current_price = int(db.get_setting('one_month_price', '70000'))
     
     # Set the awaiting flag and send instructions
     context.user_data['awaiting_price'] = True
@@ -3327,18 +3327,17 @@ def main() -> None:
     # Photo handler for receipts
     application.add_handler(MessageHandler(filters.PHOTO, handle_receipt_photo))
     
-    # Callback query handler for inline keyboards - MOVED BEFORE ConversationHandler
-    application.add_handler(CallbackQueryHandler(callback_handler))
-    
-    # Admin conversation handlers
+    # Admin conversation handlers - MOVED BEFORE main CallbackQueryHandler
     from telegram.ext import ConversationHandler
     # Import seat editing handler
     from handlers.admin_accounts import process_seat_edit
     
     admin_conv_handler = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(callback_handler, pattern=r'^admin:(addseat|bulkcsv|price|price1|usd)$'),
-            CallbackQueryHandler(callback_handler, pattern=r'^seat:(edit):\d+$')
+            CallbackQueryHandler(handle_admin_usd_rate, pattern=r'^admin:usd$'),
+            CallbackQueryHandler(handle_change_price, pattern=r'^admin:price$'),
+            CallbackQueryHandler(handle_add_seat, pattern=r'^admin:addseat$'),
+            CallbackQueryHandler(handle_bulk_csv, pattern=r'^admin:bulkcsv$'),
         ],
         states={
             ADMIN_WAITING_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
@@ -3355,6 +3354,9 @@ def main() -> None:
         per_chat=True       # مهم: اطمینان از تفکیک مکالمات بر اساس چت
     )
     application.add_handler(admin_conv_handler)
+    
+    # Callback query handler for inline keyboards - MOVED AFTER ConversationHandler
+    application.add_handler(CallbackQueryHandler(callback_handler))
     
     # Message handler for all types of messages (lowest priority)
     application.add_handler(MessageHandler(
