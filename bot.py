@@ -1444,19 +1444,19 @@ async def send_sale_report(bot, order_id, user_data, seat_data):
         
         # Create sale report message
         report_message = (
-            f"✅ *گزارش فروش*\n\n"
+            f"✅ <b>گزارش فروش</b>\n\n"
             f"اکانت ویندسکرایب یک ماهه برای کاربر {user_display} ارسال شد\n\n"
-            f"📧 *ایمیل:* `{email}`\n"
-            f"🔑 *رمز عبور:* `{password}`\n"
-            f"🔐 *کد 2FA اکانت:* `{secret}`\n\n"
-            f"💺 *ظرفیت کل صندلی های باقی مانده:* {remaining_capacity:,}"
+            f"📧 <b>ایمیل:</b> <code>{email}</code>\n"
+            f"🔑 <b>رمز عبور:</b> <code>{password}</code>\n"
+            f"🔐 <b>کد 2FA اکانت:</b> <code>{secret}</code>\n\n"
+            f"💺 <b>ظرفیت کل صندلی های باقی مانده:</b> {remaining_capacity:,}"
         )
         
         # Send report to sales log channel
         await bot.send_message(
             chat_id=LOG_SELL_CHID,
             text=report_message,
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         
         logger.info(f"Sale report sent for order {order_id} to channel {LOG_SELL_CHID}")
