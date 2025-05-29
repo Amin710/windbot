@@ -109,6 +109,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_URI = os.getenv("DB_URI")
 FERNET_KEY = os.getenv("FERNET_KEY")
 RECEIPT_CHANNEL_ID = os.getenv("RECEIPT_CHANNEL_ID")
+LOG_SELL_CHID = os.getenv("LOG_SELL_CHID")
 CARD_NUMBER = os.getenv("CARD_NUMBER", "")
 
 # Initialize Fernet for encryption/decryption
@@ -1331,7 +1332,7 @@ async def approve_order(order_id):
                 
                 # Get order details
                 cur.execute(
-                    "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer FROM orders o "
+                    "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer, u.username, u.first_name FROM orders o "
                     "JOIN users u ON o.user_id = u.id "
                     "WHERE o.id = %s AND o.status IN ('pending', 'receipt')",
                     (order_id,)
@@ -1342,7 +1343,7 @@ async def approve_order(order_id):
                     logger.error(f"Order {order_id} not found or not in pending/receipt status")
                     return False, "خطا: سفارش یافت نشد یا در وضعیت قابل تایید نیست"
                     
-                user_id, amount, utm_keyword, tg_id, referrer_id = order
+                user_id, amount, utm_keyword, tg_id, referrer_id, username, first_name = order
                 
                 # Get an available seat
                 seat = await get_available_seat()
@@ -1397,11 +1398,71 @@ async def approve_order(order_id):
                 return True, {
                     "tg_id": tg_id,
                     "order_id": order_id,
-                    "seat": seat
+                    "seat": seat,
+                    "user": {
+                        "tg_id": tg_id,
+                        "username": username,
+                        "first_name": first_name
+                    }
                 }
     except Exception as e:
         logger.error(f"Error approving order: {e}")
         return False, str(e)
+
+
+async def send_sale_report(bot, order_id, user_data, seat_data):
+    """Send sale report to the sales log channel."""
+    if not LOG_SELL_CHID:
+        logger.warning("LOG_SELL_CHID not configured, skipping sale report")
+        return
+    
+    try:
+        # Get user information
+        tg_id = user_data.get("tg_id")
+        username = user_data.get("username")
+        first_name = user_data.get("first_name", "")
+        
+        # Format user display
+        if username:
+            user_display = f"@{username}"
+        else:
+            user_display = f"ایدی عددی: {tg_id}"
+        
+        # Decrypt seat credentials
+        email = seat_data["email"]
+        password = decrypt_secret(seat_data["pass_enc"])
+        secret = decrypt_secret(seat_data["secret_enc"])
+        
+        # Get total remaining capacity
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT SUM(max_slots - sold) FROM seats WHERE status = 'active'"
+                )
+                result = cur.fetchone()
+                remaining_capacity = result[0] if result and result[0] else 0
+        
+        # Create sale report message
+        report_message = (
+            f"✅ **گزارش فروش**\n\n"
+            f"اکانت ویندسکرایب یک ماهه برای کاربر {user_display} ارسال شد\n\n"
+            f"📧 **ایمیل:** `{email}`\n"
+            f"🔑 **رمز عبور:** `{password}`\n"
+            f"🔐 **کد 2FA اکانت:** `{secret}`\n\n"
+            f"💺 **ظرفیت کل صندلی‌های باقی‌مانده:** {remaining_capacity:,}"
+        )
+        
+        # Send report to sales log channel
+        await bot.send_message(
+            chat_id=LOG_SELL_CHID,
+            text=report_message,
+            parse_mode="Markdown"
+        )
+        
+        logger.info(f"Sale report sent for order {order_id} to channel {LOG_SELL_CHID}")
+        
+    except Exception as e:
+        logger.error(f"Error sending sale report for order {order_id}: {e}")
 
 
 async def reject_order(order_id):
@@ -2870,6 +2931,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             seat = order_data["seat"]
             tg_id = order_data["tg_id"]
             order_id = order_data["order_id"]
+            user_data = order_data["user"]
+            
+            # Send sale report to log channel
+            try:
+                await send_sale_report(context.bot, order_id, user_data, seat)
+            except Exception as e:
+                logger.error(f"Error sending sale report for order {order_id}: {e}")
             
             # Decrypt credentials
             email = seat["email"]
