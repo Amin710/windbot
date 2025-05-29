@@ -38,6 +38,7 @@ from typing import Dict, Optional, Union, Tuple, List, Any
 from handlers import referral
 from handlers import admin_cards
 from handlers import card_manager
+from tabulate import tabulate
 
 from telegram.error import TelegramError, Forbidden, BadRequest, RetryAfter
 
