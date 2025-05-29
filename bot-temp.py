@@ -3255,19 +3255,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     
                     # Create appropriate message based on attempt count
                     if new_count == 1:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
                     elif new_count == 2:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
                     
-                    # Answer callback query first
-                    await query.answer()
-                    
-                    # Send 2FA code as a separate message
-                    await context.bot.send_message(
-                        chat_id=user.id,
-                        text=message_text,
-                        parse_mode="Markdown"
-                    )
+                    # Show alert with code and TTL
+                    await query.answer(alert_message, show_alert=True)
                     
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
