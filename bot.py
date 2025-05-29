@@ -32,7 +32,7 @@ import random
 import asyncio
 import traceback
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional, Union, Tuple, List, Any
 
@@ -196,6 +196,26 @@ def get_2fa_button(seat_id):
     keyboard = [
         [
             InlineKeyboardButton("📲 دریافت کد 2FA", callback_data=f"2fa:{seat_id}")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_setup_2fa_button(order_id):
+    """Create setup 2FA button for approved orders."""
+    keyboard = [
+        [
+            InlineKeyboardButton("📱 آموزش ورود به اکانت", callback_data=f"setup2fa:{order_id}")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_code_2fa_button(order_id):
+    """Create code 2FA button for generating TOTP codes."""
+    keyboard = [
+        [
+            InlineKeyboardButton("📲 دریافت کد 2FA", callback_data=f"code:{order_id}")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -2860,8 +2880,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"🎉 *سفارش شماره #{order_id} تایید شد*\n\n"
                 f"📧 ایمیل: `{email}`\n"
                 f"🔑 رمز عبور: `{password}`\n\n"
-                f"✅ از دکمه زیر برای دریافت کد 2FA استفاده کنید.\n"
-                f"*فقط یک‌بار می‌توانید از دکمه زیر استفاده کنید – اعتبار کد ۳۰ ثانیه است.*\n\n"
+                f"✅ برای آموزش ورود به اکانت و دریافت کد 2FA، روی دکمه زیر کلیک کنید.\n\n"
                 f"❌ لطفا اطلاعات حساب خود را با احتیاط نگهداری کنید."
             )
             
@@ -2870,7 +2889,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     chat_id=tg_id,
                     text=user_message,
                     parse_mode="Markdown",
-                    reply_markup=get_2fa_button(seat["id"])
+                    reply_markup=get_setup_2fa_button(order_id)
                 )
             except Exception as e:
                 logger.error(f"Error sending credentials to user: {e}")
@@ -3152,28 +3171,37 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             logger.error(f"Invalid card edit ID format: {e}")
             await query.answer("خطا در ویرایش کارت", show_alert=True)
 
-    # Handle quick TOTP code generation (alert style)
+    # Handle quick TOTP code generation with limited retries
     elif data.startswith("code:"):
         # Extract order ID from callback data
-        order_id = data.split(":")[1]
+        order_id = int(data.split(":")[1])
         
         try:
-            # Check if code has already been used for this order
+            from datetime import datetime, timezone
+            
             with db.get_conn() as conn:
                 with conn.cursor() as cur:
-                    # First check if twofa_used is TRUE
-                    cur.execute("SELECT twofa_used FROM orders WHERE id = %s", (order_id,))
+                    # Get current 2FA usage info
+                    cur.execute("SELECT twofa_count, twofa_last FROM orders WHERE id = %s", (order_id,))
                     result = cur.fetchone()
                     
                     if not result:
                         await query.answer("خطا: سفارش یافت نشد", show_alert=True)
                         return
-                        
-                    twofa_used = result[0]
                     
-                    if twofa_used:
-                        # Code has already been used - just show alert, don't edit message
-                        await query.answer("کد قبلاً دریافت شده.", show_alert=True)
+                    twofa_count, twofa_last = result
+                    now = datetime.now(timezone.utc)
+                    
+                    # Check retry limits
+                    if twofa_count == 0:
+                        # First time - allow
+                        pass
+                    elif twofa_count == 1 and twofa_last and (now - twofa_last).total_seconds() < 120:
+                        # Second time within 120 seconds - allow
+                        pass
+                    else:
+                        # Over limit or expired
+                        await query.answer("مهلت تمام شده یا قبلاً دوبار استفاده کرده‌اید.", show_alert=True)
                         return
                     
                     # Get seat ID and secret for this order
@@ -3207,15 +3235,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     # Calculate remaining seconds until code expires
                     remaining_seconds = 30 - (int(time.time()) % 30)
                     
-                    # Mark twofa as used AFTER generating the code
-                    cur.execute("UPDATE orders SET twofa_used = TRUE WHERE id = %s", (order_id,))
-                    conn.commit()
-            
-                    # Show alert with code and TTL
-                    await query.answer(
-                        f"{code} — اعتبار {remaining_seconds} ثانیه",
-                        show_alert=True
+                    # Update usage count and timestamp
+                    new_count = twofa_count + 1
+                    cur.execute(
+                        "UPDATE orders SET twofa_count = %s, twofa_last = %s WHERE id = %s",
+                        (new_count, now, order_id)
                     )
+                    conn.commit()
+                    
+                    # Create appropriate message based on attempt count
+                    if new_count == 1:
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
+                    elif new_count == 2:
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
+                    
+                    # Show alert with code and TTL
+                    await query.answer(alert_message, show_alert=True)
+                    
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
             # Log detailed error information using the enhanced logger
@@ -3227,6 +3263,38 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "noop":
         # Just answer the callback query to acknowledge it, no action needed
         await query.answer()
+    
+    # Handle 2FA setup request
+    elif data.startswith("setup2fa:"):
+        # Extract order ID
+        order_id = int(data.split(":")[1])
+        
+        try:
+            # Answer the callback query first
+            await query.answer()
+            
+            # Send tutorial message as a separate message (not editing the original)
+            tutorial_message = (
+                f"📱 *آموزش ورود به اکانت در ویندسکرایب*\n\n"
+                f"1️⃣ ابتدا برنامه ویندسکرایب را نصب کنید\n"
+                f"2️⃣ وارد برنامه شوید و روی Login کلیک کنید\n"
+                f"3️⃣ ایمیل و رمز عبور خود را وارد کنید\n"
+                f"4️⃣ سپس روی دکمه زیر برای دریافت کد دومرحله‌ای بزنید\n\n"
+                f"⚠️ *توجه:* هر کد فقط 30 ثانیه اعتبار دارد و حداکثر 2 بار می‌توانید کد دریافت کنید."
+            )
+            
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=tutorial_message,
+                parse_mode="Markdown",
+                reply_markup=get_code_2fa_button(order_id)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error sending 2FA tutorial: {e}")
+            await query.answer("خطا در ارسال آموزش", show_alert=True)
+    
+    # Handle 2FA code request
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:

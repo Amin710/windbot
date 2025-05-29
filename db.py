@@ -179,6 +179,23 @@ def apply_migrations():
                 ALTER TABLE orders ADD COLUMN IF NOT EXISTS twofa_used BOOLEAN DEFAULT FALSE;
                 """)
                 
+                # Add 2FA retry limit columns (STEP Z-17)
+                cur.execute("""
+                ALTER TABLE orders 
+                ADD COLUMN IF NOT EXISTS twofa_count SMALLINT DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS twofa_last TIMESTAMPTZ;
+                """)
+                
+                # Create index for better performance on twofa queries
+                cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_orders_twofa_last ON orders(twofa_last);
+                """)
+                
+                # Update existing orders to have default twofa_count values
+                cur.execute("""
+                UPDATE orders SET twofa_count = 0 WHERE twofa_count IS NULL;
+                """)
+                
                 # Add referral system columns
                 cur.execute("""
                 -- Add referral system support
