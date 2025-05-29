@@ -3210,8 +3210,21 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         # Second time within 120 seconds - allow
                         pass
                     else:
-                        # Over limit or expired
-                        await query.answer("مهلت تمام شده یا قبلاً دوبار استفاده کرده‌اید.", show_alert=True)
+                        # Over limit or expired - Send warning message
+                        await query.answer()
+                        
+                        # Send warning message as a separate message
+                        warning_message = (
+                            f"⚠️ *محدودیت دریافت کد 2FA*\n\n"
+                            f"❌ شما قبلاً دوبار کد 2FA دریافت کرده‌اید.\n\n"
+                            f"💡 در صورت نیاز به کمک، لطفاً با پشتیبانی تماس بگیرید."
+                        )
+                        
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text=warning_message,
+                            parse_mode="Markdown"
+                        )
                         return
                     
                     # Get seat ID and secret for this order
