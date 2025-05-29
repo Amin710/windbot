@@ -3337,7 +3337,7 @@ def main() -> None:
     
     admin_conv_handler = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(callback_handler, pattern=r'^admin:(addseat|bulkcsv|price|price1)$'),
+            CallbackQueryHandler(callback_handler, pattern=r'^admin:(addseat|bulkcsv|price|price1|usd)$'),
             CallbackQueryHandler(callback_handler, pattern=r'^seat:(edit):\d+$')
         ],
         states={
