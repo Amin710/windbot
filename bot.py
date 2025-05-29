@@ -1460,9 +1460,26 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 # Get USD rate
                 usd_rate = int(db.get_setting('usd_rate', '70000'))  # Default 70,000 Toman per USD
                 
-                # Get user count
+                # User registration statistics
+                # Users registered today
+                cur.execute("""
+                    SELECT COUNT(*) 
+                    FROM users 
+                    WHERE DATE(created_at) = CURRENT_DATE
+                """)
+                users_today = cur.fetchone()[0]
+                
+                # Users registered this month
+                cur.execute("""
+                    SELECT COUNT(*) 
+                    FROM users 
+                    WHERE DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
+                """)
+                users_this_month = cur.fetchone()[0]
+                
+                # Total users
                 cur.execute("SELECT COUNT(*) FROM users")
-                user_count = cur.fetchone()[0]
+                total_users = cur.fetchone()[0]
                 
                 # Get approved sales count
                 cur.execute("SELECT COUNT(*) FROM orders WHERE status = 'approved'")
@@ -1520,8 +1537,11 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 # Format statistics message
                 stats_message = (
                     f"📊 *آمار سیستم*\n\n"
-                    f"👤 تعداد کاربران: *{user_count:,}*\n"
-                    f"💳 تعداد فروش: *{approved_sales:,}*\n"
+                    f"👤 *کاربران:*\n"
+                    f"├ امروز: {users_today:,}\n"
+                    f"├ این ماه: {users_this_month:,}\n"
+                    f"└ کل: {total_users:,}\n\n"
+                    
                     f"💺 صندلی‌های فروخته: *{int(seats_sold):,}*\n"
                     f"💿 ظرفیت باقیمانده: *{int(available_slots):,}*\n\n"
                     
