@@ -3362,9 +3362,9 @@ def main() -> None:
     # Callback query handler for inline keyboards - MOVED AFTER ConversationHandler
     application.add_handler(CallbackQueryHandler(callback_handler))
     
-    # Message handler for all types of messages (lowest priority)
+    # Message handler for documents only (lowest priority)
     application.add_handler(MessageHandler(
-        (filters.TEXT | filters.Document.ALL) & ~filters.COMMAND, 
+        filters.Document.ALL & ~filters.COMMAND, 
         message_handler
     ))
     
