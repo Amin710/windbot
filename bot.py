@@ -1971,9 +1971,8 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
         duplicate_count = 0
         error_count = 0
         errors = []
-        reader = None
         
-        # Try opening with different encodings
+        # Try opening with different encodings to find the correct one
         encodings = ['utf-8', 'latin-1', 'cp1256']
         working_encoding = None
         header_fields = None
@@ -1982,9 +1981,9 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
         for encoding in encodings:
             try:
                 with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    # Test reading the first row to verify encoding
-                    header_fields = reader.fieldnames
+                    test_reader = csv.DictReader(csvfile)
+                    # Test reading headers to verify encoding
+                    header_fields = test_reader.fieldnames
                     if header_fields:  # Successfully parsed headers
                         working_encoding = encoding
                         break
@@ -2020,10 +2019,10 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                 os.remove(csv_file_path)
             return
         
-        # Now process rows
+        # Now process rows with the correct encoding
         total_rows = 0
         
-        # Read file with the correct encoding we've already determined
+        # Read and process the file with the correct encoding
         with open(csv_file_path, 'r', newline='', encoding=working_encoding) as csvfile:
             reader = csv.DictReader(csvfile)
             
@@ -2196,26 +2195,27 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
         duplicate_count = 0
         error_count = 0
         errors = []
-        reader = None
         
-        # Try opening with different encodings
+        # Try opening with different encodings to find the correct one
         encodings = ['utf-8', 'latin-1', 'cp1256']
+        working_encoding = None
+        header_fields = None
+        
+        # First find the correct encoding and read headers
         for encoding in encodings:
             try:
                 with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    # Test reading the first row to verify encoding
-                    fieldnames = reader.fieldnames
-                    if fieldnames:  # Successfully parsed headers
-                        # Reopen file with correct encoding
-                        csvfile.seek(0)
-                        reader = csv.DictReader(csvfile)
+                    test_reader = csv.DictReader(csvfile)
+                    # Test reading headers to verify encoding
+                    header_fields = test_reader.fieldnames
+                    if header_fields:  # Successfully parsed headers
+                        working_encoding = encoding
                         break
             except Exception as enc_error:
                 logger.error(f"Error with encoding {encoding}: {enc_error}")
                 continue
         
-        if not reader or not reader.fieldnames:
+        if not working_encoding or not header_fields:
             await status_msg.edit_text(
                 "❌ *خطا در خواندن فایل CSV: فرمت فایل نامعتبر است*",
                 parse_mode="Markdown",
@@ -2223,14 +2223,14 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             if os.path.exists(csv_file_path):
                 os.remove(csv_file_path)
-            return -1
+            return
         
         # Log the fieldnames for debugging
-        logger.info(f"CSV fieldnames: {reader.fieldnames}")
+        logger.info(f"CSV fieldnames: {header_fields}")
         
         # Verify required columns
         required_fields = ['email', 'password', 'secret']
-        missing_fields = [field for field in required_fields if field not in reader.fieldnames]
+        missing_fields = [field for field in required_fields if field not in header_fields]
         
         if missing_fields:
             await status_msg.edit_text(
@@ -2241,13 +2241,13 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             if os.path.exists(csv_file_path):
                 os.remove(csv_file_path)
-            return -1
+            return
         
-        # Now process rows
+        # Now process rows with the correct encoding
         total_rows = 0
         
-        # Read file again with correct encoding
-        with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
+        # Read and process the file with the correct encoding
+        with open(csv_file_path, 'r', newline='', encoding=working_encoding) as csvfile:
             reader = csv.DictReader(csvfile)
             
             for i, row in enumerate(reader, 1):
