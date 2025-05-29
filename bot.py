@@ -1652,6 +1652,7 @@ async def handle_admin_card(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def handle_admin_usd_rate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle admin USD rate change request."""
     query = update.callback_query
+    await query.answer()  # Answer the callback query
     
     # Get current USD rate
     current_rate = db.get_setting('usd_rate', '0')
@@ -1671,6 +1672,7 @@ async def handle_admin_usd_rate(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the add seat callback."""
     query = update.callback_query
+    await query.answer()  # Answer the callback query
     user = update.effective_user
     
     # Check if user is admin
@@ -1696,6 +1698,7 @@ async def handle_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def handle_bulk_csv(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the bulk CSV upload callback."""
     query = update.callback_query
+    await query.answer()  # Answer the callback query
     user = update.effective_user
     
     # Check if user is admin
@@ -1898,6 +1901,7 @@ async def handle_utm_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def handle_change_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the change price callback."""
     query = update.callback_query
+    await query.answer()  # Answer the callback query
     user = update.effective_user
     
     # Check if user is admin
