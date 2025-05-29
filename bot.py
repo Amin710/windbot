@@ -714,16 +714,9 @@ async def manage_services(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     keyboard = []
                     for order_id, email, seat_id in orders:
                         message += f"\n✅ سرویس #{order_id}: `{email}`"
-                        # Add 2FA code button for this service
-                        keyboard.append([
-                            InlineKeyboardButton(
-                                f"📲 کد 2FA برای {email}", 
-                                callback_data=f"code:{seat_id}"
-                            )
-                        ])
                     
                     # Add back button
-                    message += "\n\nبرای دریافت کد 2FA روی دکمه مربوطه کلیک کنید."
+                    message += "\n\n📧 اطلاعات حساب شما در بالا نمایش داده شده است."
                     keyboard.append([InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")])
                 
                 reply_markup = InlineKeyboardMarkup(keyboard)
