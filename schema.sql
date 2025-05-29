@@ -34,7 +34,9 @@ CREATE TABLE orders (
     seat_id INTEGER REFERENCES seats(id),
     utm_keyword TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    approved_at TIMESTAMPTZ
+    approved_at TIMESTAMPTZ,
+    twofa_count SMALLINT DEFAULT 0,
+    twofa_last TIMESTAMPTZ
 );
 
 -- Receipts table with 1:1 relationship to orders
@@ -85,4 +87,5 @@ CREATE INDEX idx_users_tg_id ON users(tg_id);
 CREATE INDEX idx_orders_user_id ON orders(user_id);
 CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_created_at ON orders(created_at);
+CREATE INDEX idx_orders_twofa_last ON orders(twofa_last);
 CREATE INDEX idx_order_log_order_id ON order_log(order_id);
