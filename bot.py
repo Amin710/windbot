@@ -434,7 +434,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def backup_db(bot, status_message):
-    """Create a database backup using pg_dump and send it to the admin channel."""
+    """Create a database backup using Python and send it to the admin channel."""
     if not RECEIPT_CHANNEL_ID:
         await status_message.edit_text(
             "❌ *خطا: RECEIPT_CHANNEL_ID تنظیم نشده است*",
@@ -443,90 +443,92 @@ async def backup_db(bot, status_message):
         return
         
     try:
-        # Parse database connection string
-        db_uri = DB_URI
-        if not db_uri:
-            await status_message.edit_text(
-                "❌ *خطا: DB_URI تنظیم نشده است*",
-                parse_mode="Markdown"
-            )
-            return
-            
-        # Extract database connection details
-        # Expected format: postgresql://username:password@host:port/dbname
-        db_parts = db_uri.replace('postgresql://', '').split('@')
-        if len(db_parts) != 2:
-            await status_message.edit_text(
-                "❌ *خطا: فرمت DB_URI نامعتبر است*",
-                parse_mode="Markdown"
-            )
-            return
-            
-        user_pass = db_parts[0].split(':')
-        host_port_db = db_parts[1].split('/')
-        
-        if len(user_pass) != 2 or len(host_port_db) < 2:
-            await status_message.edit_text(
-                "❌ *خطا: فرمت DB_URI نامعتبر است*",
-                parse_mode="Markdown"
-            )
-            return
-            
-        username = user_pass[0]
-        password = user_pass[1]
-        
-        host_port = host_port_db[0].split(':')
-        host = host_port[0]
-        port = host_port[1] if len(host_port) > 1 else '5432'
-        
-        dbname = host_port_db[1]
-        
-        # Create a temporary file for the backup
+        # Create a timestamp for the backup
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"wind_reseller_backup_{timestamp}.sql"
         
         with tempfile.TemporaryDirectory() as temp_dir:
             backup_path = Path(temp_dir) / backup_filename
             
-            # Set up environment with password
-            env = os.environ.copy()
-            env["PGPASSWORD"] = password
-            
-            # Create backup using pg_dump
             await status_message.edit_text(
-                "💾 *در حال اجرای pg_dump...*",
+                "💾 *در حال ایجاد بکاپ...*",
                 parse_mode="Markdown"
             )
             
-            # Build pg_dump command
-            cmd = [
-                "pg_dump",
-                "-h", host,
-                "-p", port,
-                "-U", username,
-                "-F", "p",  # Plain text format
-                "-f", str(backup_path),
-                dbname
-            ]
-            
-            # Run pg_dump
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode != 0:
-                error_msg = stderr.decode() if stderr else "Unknown error"
-                logger.error(f"pg_dump failed: {error_msg}")
-                await status_message.edit_text(
-                    f"❌ *خطا در تهیه بکاپ*\n\n`{error_msg[:500]}`",
-                    parse_mode="Markdown"
-                )
-                return
+            # Create backup using Python
+            with open(backup_path, "w", encoding="utf-8") as backup_file:
+                # Write backup header
+                backup_file.write(f"-- Wind Reseller Database Backup\n")
+                backup_file.write(f"-- Generated on: {timestamp}\n")
+                backup_file.write(f"-- PostgreSQL Database Backup\n\n")
+                backup_file.write("BEGIN;\n\n")
+                
+                # Get database connection
+                with db.get_conn() as conn:
+                    with conn.cursor() as cur:
+                        # Get all table names
+                        cur.execute("""
+                            SELECT tablename FROM pg_tables 
+                            WHERE schemaname = 'public' 
+                            ORDER BY tablename
+                        """)
+                        tables = [row[0] for row in cur.fetchall()]
+                        
+                        await status_message.edit_text(
+                            f"💾 *در حال بکاپ {len(tables)} جدول...*",
+                            parse_mode="Markdown"
+                        )
+                        
+                        for table in tables:
+                            # Get table structure
+                            cur.execute(f"""
+                                SELECT column_name, data_type, is_nullable, column_default
+                                FROM information_schema.columns 
+                                WHERE table_name = %s AND table_schema = 'public'
+                                ORDER BY ordinal_position
+                            """, (table,))
+                            columns = cur.fetchall()
+                            
+                            # Write table structure comment
+                            backup_file.write(f"-- Table: {table}\n")
+                            
+                            # Get table data
+                            cur.execute(f"SELECT * FROM {table}")
+                            rows = cur.fetchall()
+                            
+                            if rows:
+                                # Get column names
+                                column_names = [desc[0] for desc in cur.description]
+                                
+                                # Write INSERT statements
+                                for row in rows:
+                                    values = []
+                                    for value in row:
+                                        if value is None:
+                                            values.append("NULL")
+                                        elif isinstance(value, str):
+                                            # Escape single quotes
+                                            escaped_value = value.replace("'", "''")
+                                            values.append(f"'{escaped_value}'")
+                                        elif isinstance(value, (int, float)):
+                                            values.append(str(value))
+                                        elif isinstance(value, bool):
+                                            values.append("TRUE" if value else "FALSE")
+                                        else:
+                                            # For other types, convert to string and escape
+                                            escaped_value = str(value).replace("'", "''")
+                                            values.append(f"'{escaped_value}'")
+                                    
+                                    backup_file.write(
+                                        f"INSERT INTO {table} ({', '.join(column_names)}) "
+                                        f"VALUES ({', '.join(values)});\n"
+                                    )
+                                
+                                backup_file.write(f"\n")
+                        
+                        # Write backup footer
+                        backup_file.write("COMMIT;\n")
+                        backup_file.write(f"\n-- Backup completed at {timestamp}\n")
             
             # Check if backup file exists and has content
             if not backup_path.exists() or backup_path.stat().st_size == 0:
