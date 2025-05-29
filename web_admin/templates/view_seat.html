@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}جزئیات اکانت #{{ seat.id }} - پنل مدیریت{% endblock %}
+{% block page_title %}جزئیات اکانت #{{ seat.id }}{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('seats') }}" class="btn btn-outline-secondary btn-custom">
+    <i class="fas fa-arrow-left"></i>
+    برگشت به لیست
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-circle text-primary"></i>
+                    اطلاعات اکانت
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">آدرس ایمیل:</label>
+                        <div class="form-control-plaintext">
+                            <i class="fas fa-envelope text-primary me-2"></i>
+                            {{ seat.email }}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">رمز عبور:</label>
+                        <div class="input-group">
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="password" 
+                                   value="{{ seat.password }}" 
+                                   readonly>
+                            <button class="btn btn-outline-secondary" 
+                                    type="button" 
+                                    onclick="togglePasswordVisibility('password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-primary" 
+                                    type="button" 
+                                    onclick="copyToClipboard('{{ seat.password }}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">کد 2FA (Secret):</label>
+                        <div class="input-group">
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="secret" 
+                                   value="{{ seat.secret }}" 
+                                   readonly>
+                            <button class="btn btn-outline-secondary" 
+                                    type="button" 
+                                    onclick="togglePasswordVisibility('secret')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-primary" 
+                                    type="button" 
+                                    onclick="copyToClipboard('{{ seat.secret }}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">وضعیت:</label>
+                        <div class="form-control-plaintext">
+                            {% if seat.status == 'active' %}
+                                <span class="badge bg-success fs-6">
+                                    <i class="fas fa-check-circle"></i> فعال
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger fs-6">
+                                    <i class="fas fa-times-circle"></i> غیرفعال
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Usage Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar text-success"></i>
+                    آمار استفاده
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h3 text-info">{{ seat.max_slots }}</div>
+                        <small class="text-muted">کل صندلی</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h3 text-success">{{ seat.sold }}</div>
+                        <small class="text-muted">فروخته شده</small>
+                    </div>
+                </div>
+                
+                <hr class="my-3">
+                
+                {% set available = seat.max_slots - seat.sold %}
+                {% set usage_percent = (seat.sold / seat.max_slots * 100) | round(1) %}
+                
+                <div class="progress mb-2" style="height: 10px;">
+                    <div class="progress-bar bg-success" 
+                         style="width: {{ usage_percent }}%"></div>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted">{{ available }} صندلی باقی مانده</small>
+                    <small class="text-muted">{{ usage_percent }}% استفاده شده</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Details -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle text-info"></i>
+                    جزئیات بیشتر
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>تاریخ ایجاد:</strong>
+                    <br>
+                    <small class="text-muted">
+                        {{ seat.created_at.strftime('%Y/%m/%d %H:%M') }}
+                    </small>
+                </div>
+                
+                {% if seat.updated_at %}
+                <div class="mb-3">
+                    <strong>آخرین بروزرسانی:</strong>
+                    <br>
+                    <small class="text-muted">
+                        {{ seat.updated_at.strftime('%Y/%m/%d %H:%M') }}
+                    </small>
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <strong>شناسه اکانت:</strong>
+                    <br>
+                    <code>#{{ seat.id }}</code>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-cogs text-warning"></i>
+                    عملیات
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning btn-custom" 
+                            onclick="editAccount()">
+                        <i class="fas fa-edit"></i>
+                        ویرایش اکانت
+                    </button>
+                    
+                    <button class="btn btn-outline-info btn-custom" 
+                            onclick="testLogin()">
+                        <i class="fas fa-plug"></i>
+                        تست اتصال
+                    </button>
+                    
+                    {% if seat.status == 'active' %}
+                    <button class="btn btn-outline-secondary btn-custom" 
+                            onclick="deactivateAccount()">
+                        <i class="fas fa-pause"></i>
+                        غیرفعال کردن
+                    </button>
+                    {% else %}
+                    <button class="btn btn-outline-success btn-custom" 
+                            onclick="activateAccount()">
+                        <i class="fas fa-play"></i>
+                        فعال کردن
+                    </button>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <button class="btn btn-outline-danger btn-custom" 
+                            onclick="deleteAccount()">
+                        <i class="fas fa-trash"></i>
+                        حذف اکانت
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    const button = field.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        field.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-success position-fixed';
+        toast.style.cssText = 'top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999;';
+        toast.textContent = 'کپی شد!';
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 2000);
+    });
+}
+
+function editAccount() {
+    alert('ویرایش اکانت - در حال توسعه');
+}
+
+function testLogin() {
+    alert('تست اتصال اکانت - در حال توسعه');
+}
+
+function activateAccount() {
+    if (confirm('آیا از فعال کردن این اکانت اطمینان دارید؟')) {
+        alert('فعال‌سازی اکانت - در حال توسعه');
+    }
+}
+
+function deactivateAccount() {
+    if (confirm('آیا از غیرفعال کردن این اکانت اطمینان دارید؟')) {
+        alert('غیرفعال‌سازی اکانت - در حال توسعه');
+    }
+}
+
+function deleteAccount() {
+    if (confirm('آیا از حذف این اکانت اطمینان دارید؟ این عمل قابل برگشت نیست!')) {
+        alert('حذف اکانت - در حال توسعه');
+    }
+}
+</script>
+{% endblock %} 

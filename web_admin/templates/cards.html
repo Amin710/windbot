@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}شماره کارت‌ها - پنل مدیریت{% endblock %}
+{% block page_title %}مدیریت شماره کارت‌ها{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-primary btn-custom" onclick="showAddCardModal()">
+    <i class="fas fa-plus"></i>
+    افزودن کارت جدید
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-credit-card text-primary"></i>
+            لیست شماره کارت‌ها
+        </h5>
+    </div>
+    
+    <div class="card-body">
+        {% if cards %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>شناسه</th>
+                        <th>شماره کارت</th>
+                        <th>تاریخ اضافه</th>
+                        <th>آخرین بروزرسانی</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for card in cards %}
+                    <tr>
+                        <td><strong>#{{ card.id }}</strong></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-credit-card text-primary me-2"></i>
+                                <span class="font-monospace">{{ card.card_number }}</span>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" 
+                                        onclick="copyToClipboard('{{ card.card_number }}')"
+                                        title="کپی شماره کارت">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <small>{{ card.created_at.strftime('%Y/%m/%d %H:%M') }}</small>
+                        </td>
+                        <td>
+                            {% if card.updated_at %}
+                                <small>{{ card.updated_at.strftime('%Y/%m/%d %H:%M') }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-warning" 
+                                        onclick="editCard({{ card.id }}, '{{ card.card_number }}')"
+                                        title="ویرایش">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="deleteCard({{ card.id }})"
+                                        title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-credit-card fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">هیچ شماره کارتی یافت نشد</h4>
+            <p class="text-muted mb-4">شما هنوز هیچ شماره کارتی اضافه نکرده‌اید.</p>
+            <button class="btn btn-primary btn-custom" onclick="showAddCardModal()">
+                <i class="fas fa-plus"></i>
+                افزودن اولین کارت
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add/Edit Card Modal -->
+<div class="modal fade" id="cardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cardModalTitle">افزودن کارت جدید</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="cardForm">
+                    <input type="hidden" id="cardId" name="cardId">
+                    <div class="mb-3">
+                        <label for="cardNumber" class="form-label">
+                            <i class="fas fa-credit-card text-primary"></i>
+                            شماره کارت
+                        </label>
+                        <input type="text" 
+                               class="form-control font-monospace" 
+                               id="cardNumber" 
+                               name="cardNumber" 
+                               maxlength="19"
+                               placeholder="0000-0000-0000-0000"
+                               required>
+                        <div class="form-text">
+                            شماره کارت 16 رقمی (با یا بدون خط تیره)
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                <button type="button" class="btn btn-primary" onclick="saveCard()">ذخیره</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isEdit = false;
+let currentCardId = null;
+
+function showAddCardModal() {
+    isEdit = false;
+    currentCardId = null;
+    document.getElementById('cardModalTitle').textContent = 'افزودن کارت جدید';
+    document.getElementById('cardForm').reset();
+    document.getElementById('cardId').value = '';
+    new bootstrap.Modal(document.getElementById('cardModal')).show();
+}
+
+function editCard(cardId, cardNumber) {
+    isEdit = true;
+    currentCardId = cardId;
+    document.getElementById('cardModalTitle').textContent = 'ویرایش شماره کارت';
+    document.getElementById('cardId').value = cardId;
+    document.getElementById('cardNumber').value = cardNumber;
+    new bootstrap.Modal(document.getElementById('cardModal')).show();
+}
+
+function saveCard() {
+    const cardNumber = document.getElementById('cardNumber').value.trim();
+    
+    if (!cardNumber) {
+        alert('لطفاً شماره کارت را وارد کنید');
+        return;
+    }
+    
+    // Validate card number (basic validation)
+    const cleanCardNumber = cardNumber.replace(/\D/g, '');
+    if (cleanCardNumber.length !== 16) {
+        alert('شماره کارت باید 16 رقم باشد');
+        return;
+    }
+    
+    const url = isEdit ? `/api/cards/${currentCardId}` : '/api/cards';
+    const method = isEdit ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            card_number: cleanCardNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('cardModal')).hide();
+            location.reload();
+        } else {
+            alert('خطا در ذخیره کارت: ' + (data.error || 'خطای ناشناخته'));
+        }
+    })
+    .catch(error => {
+        alert('خطا در ذخیره کارت');
+    });
+}
+
+function deleteCard(cardId) {
+    if (confirm('آیا از حذف این شماره کارت اطمینان دارید؟')) {
+        fetch(`/api/cards/${cardId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('خطا در حذف کارت: ' + (data.error || 'خطای ناشناخته'));
+            }
+        })
+        .catch(error => {
+            alert('خطا در حذف کارت');
+        });
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'alert alert-success position-fixed';
+        toast.style.cssText = 'top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999;';
+        toast.textContent = 'شماره کارت کپی شد!';
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 2000);
+    });
+}
+
+// Format card number input as user types
+document.addEventListener('DOMContentLoaded', function() {
+    const cardNumberInput = document.getElementById('cardNumber');
+    
+    cardNumberInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        let formattedValue = value.replace(/(\d{4})(?=\d)/g, '$1-');
+        
+        if (formattedValue.length <= 19) { // 16 digits + 3 dashes
+            e.target.value = formattedValue;
+        }
+    });
+});
+</script>
+{% endblock %} 

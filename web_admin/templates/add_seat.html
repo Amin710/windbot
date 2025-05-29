@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}افزودن اکانت جدید - پنل مدیریت{% endblock %}
+{% block page_title %}افزودن اکانت جدید{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('seats') }}" class="btn btn-outline-secondary btn-custom">
+    <i class="fas fa-arrow-left"></i>
+    برگشت به لیست
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus-circle text-primary"></i>
+                    اطلاعات اکانت ویندسکرایب
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">
+                                <i class="fas fa-envelope text-primary"></i>
+                                آدرس ایمیل
+                            </label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   required 
+                                   placeholder="example@email.com">
+                            <div class="form-text">
+                                ایمیل مربوط به اکانت ویندسکرایب
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock text-primary"></i>
+                                رمز عبور
+                            </label>
+                            <div class="input-group">
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="password" 
+                                       name="password" 
+                                       required 
+                                       placeholder="رمز عبور اکانت">
+                                <button class="btn btn-outline-secondary" 
+                                        type="button" 
+                                        onclick="togglePassword('password')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                رمز عبور اکانت ویندسکرایب
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="secret" class="form-label">
+                                <i class="fas fa-key text-primary"></i>
+                                کد 2FA (Secret)
+                            </label>
+                            <div class="input-group">
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="secret" 
+                                       name="secret" 
+                                       required 
+                                       placeholder="XXXXXXXXXXXXXXXXXXXXXXXX">
+                                <button class="btn btn-outline-secondary" 
+                                        type="button" 
+                                        onclick="togglePassword('secret')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                کد Secret برای تولید 2FA (معمولاً 32 کاراکتر)
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="max_slots" class="form-label">
+                                <i class="fas fa-chair text-primary"></i>
+                                تعداد صندلی
+                            </label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="max_slots" 
+                                   name="max_slots" 
+                                   min="1" 
+                                   max="15" 
+                                   value="15" 
+                                   required>
+                            <div class="form-text">
+                                حداکثر تعداد دستگاه قابل اتصال (پیش‌فرض: 15)
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-info-circle"></i>
+                                    نکات مهم:
+                                </h6>
+                                <ul class="mb-0">
+                                    <li>اطمینان حاصل کنید که اکانت ویندسکرایب معتبر و فعال است</li>
+                                    <li>کد 2FA باید از تنظیمات اکانت ویندسکرایب دریافت شود</li>
+                                    <li>تمام اطلاعات بصورت رمزگذاری شده در پایگاه داده ذخیره می‌شود</li>
+                                    <li>حداکثر تعداد صندلی معمولاً 15 عدد است</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('seats') }}" class="btn btn-outline-secondary btn-custom">
+                            <i class="fas fa-times"></i>
+                            انصراف
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary btn-custom">
+                            <i class="fas fa-save"></i>
+                            ذخیره اکانت
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Help Card -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-question-circle text-info"></i>
+                    چگونه کد 2FA را دریافت کنم؟
+                </h6>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li>وارد حساب ویندسکرایب خود شوید</li>
+                    <li>به بخش <strong>Security</strong> یا <strong>امنیت</strong> بروید</li>
+                    <li>گزینه <strong>Two-Factor Authentication</strong> را فعال کنید</li>
+                    <li>کد Secret نمایش داده شده را کپی کنید</li>
+                    <li>آن را در فیلد "کد 2FA" وارد کنید</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    const button = field.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        field.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const secret = document.getElementById('secret').value;
+    
+    // Basic validation for 2FA secret (should be around 32 characters)
+    if (secret.length < 16) {
+        e.preventDefault();
+        alert('کد 2FA باید حداقل 16 کاراکتر باشد');
+        return false;
+    }
+    
+    // Email validation
+    const email = document.getElementById('email').value;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        e.preventDefault();
+        alert('لطفاً یک آدرس ایمیل معتبر وارد کنید');
+        return false;
+    }
+    
+    return true;
+});
+</script>
+{% endblock %} 

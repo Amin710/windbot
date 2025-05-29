@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}داشبورد - پنل مدیریت ویندسکرایب{% endblock %}
+{% block page_title %}داشبورد{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Statistics Cards -->
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                    <div class="ms-3">
+                        <div class="text-light small">تعداد کاربران</div>
+                        <div class="h4 mb-0">{{ "{:,}".format(stats.users_count or 0) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card-success">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <div class="ms-3">
+                        <div class="text-light small">سفارشات تایید شده</div>
+                        <div class="h4 mb-0">{{ "{:,}".format(stats.approved_orders or 0) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card-warning">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-shopping-cart fa-2x"></i>
+                    </div>
+                    <div class="ms-3">
+                        <div class="text-light small">کل سفارشات</div>
+                        <div class="h4 mb-0">{{ "{:,}".format(stats.orders_count or 0) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card-info">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-chair fa-2x"></i>
+                    </div>
+                    <div class="ms-3">
+                        <div class="text-light small">صندلی‌های موجود</div>
+                        <div class="h4 mb-0">{{ "{:,}".format(stats.available_slots or 0) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Orders -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock text-primary"></i>
+                    آخرین سفارشات
+                </h5>
+                <a href="{{ url_for('orders') }}" class="btn btn-outline-primary btn-sm">
+                    مشاهده همه
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>شماره سفارش</th>
+                                <th>کاربر</th>
+                                <th>مبلغ</th>
+                                <th>وضعیت</th>
+                                <th>تاریخ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td>
+                                    <strong>#{{ order.id }}</strong>
+                                </td>
+                                <td>
+                                    {% if order.username %}
+                                        {{ order.first_name }} (@{{ order.username }})
+                                    {% else %}
+                                        {{ order.first_name or 'نامشخص' }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-success fw-bold">
+                                        {{ "{:,}".format(order.amount) }} تومان
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if order.status == 'approved' %}
+                                        <span class="badge bg-success badge-status">تایید شده</span>
+                                    {% elif order.status == 'pending' %}
+                                        <span class="badge bg-warning badge-status">در انتظار</span>
+                                    {% elif order.status == 'receipt' %}
+                                        <span class="badge bg-info badge-status">فیش ارسال شده</span>
+                                    {% elif order.status == 'rejected' %}
+                                        <span class="badge bg-danger badge-status">رد شده</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary badge-status">{{ order.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ order.created_at.strftime('%Y/%m/%d %H:%M') }}
+                                    </small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">هیچ سفارشی یافت نشد</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt text-warning"></i>
+                    عملیات سریع
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <a href="{{ url_for('add_seat') }}" class="btn btn-primary btn-custom">
+                        <i class="fas fa-plus-circle"></i>
+                        افزودن اکانت جدید
+                    </a>
+                    
+                    <a href="{{ url_for('seats') }}" class="btn btn-outline-primary btn-custom">
+                        <i class="fas fa-list"></i>
+                        مشاهده اکانت‌ها
+                    </a>
+                    
+                    <a href="{{ url_for('orders') }}?status=pending" class="btn btn-outline-warning btn-custom">
+                        <i class="fas fa-clock"></i>
+                        سفارشات در انتظار
+                    </a>
+                    
+                    <a href="{{ url_for('users') }}" class="btn btn-outline-info btn-custom">
+                        <i class="fas fa-users"></i>
+                        مدیریت کاربران
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie text-success"></i>
+                    آمار سریع
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-left ps-3">
+                            <div class="h4 text-primary">{{ stats.active_seats or 0 }}</div>
+                            <small class="text-muted">اکانت فعال</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 text-success">{{ stats.available_slots or 0 }}</div>
+                        <small class="text-muted">صندلی موجود</small>
+                    </div>
+                </div>
+                
+                <hr class="my-3">
+                
+                {% if stats.orders_count and stats.orders_count > 0 %}
+                <div class="progress mb-2" style="height: 8px;">
+                    {% set success_rate = (stats.approved_orders / stats.orders_count * 100) | round(1) %}
+                    <div class="progress-bar bg-success" 
+                         style="width: {{ success_rate }}%"></div>
+                </div>
+                <small class="text-muted">
+                    نرخ موفقیت سفارشات: {{ success_rate }}%
+                </small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh dashboard every 30 seconds
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %} 
