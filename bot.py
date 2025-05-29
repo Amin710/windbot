@@ -1469,20 +1469,20 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 total_users = 0
                 
                 try:
-                    # Check if created_at column exists first
+                    # Check if joined_at column exists in users table
                     cur.execute("""
                         SELECT column_name 
                         FROM information_schema.columns 
-                        WHERE table_name = 'users' AND column_name = 'created_at'
+                        WHERE table_name = 'users' AND column_name = 'joined_at'
                     """)
-                    has_created_at = cur.fetchone() is not None
+                    has_joined_at = cur.fetchone() is not None
                     
-                    if has_created_at:
+                    if has_joined_at:
                         # Users registered today
                         cur.execute("""
                             SELECT COUNT(*) 
                             FROM users 
-                            WHERE DATE(created_at) = CURRENT_DATE
+                            WHERE DATE(joined_at) = CURRENT_DATE
                         """)
                         users_today = cur.fetchone()[0]
                         
@@ -1490,7 +1490,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                         cur.execute("""
                             SELECT COUNT(*) 
                             FROM users 
-                            WHERE DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
+                            WHERE DATE(joined_at) >= DATE_TRUNC('month', CURRENT_DATE)
                         """)
                         users_this_month = cur.fetchone()[0]
                     
