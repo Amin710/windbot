@@ -1457,6 +1457,9 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
+                # Get USD rate
+                usd_rate = int(db.get_setting('usd_rate', '70000'))  # Default 70,000 Toman per USD
+                
                 # Get user count
                 cur.execute("SELECT COUNT(*) FROM users")
                 user_count = cur.fetchone()[0]
@@ -1464,10 +1467,6 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 # Get approved sales count
                 cur.execute("SELECT COUNT(*) FROM orders WHERE status = 'approved'")
                 approved_sales = cur.fetchone()[0]
-                
-                # Get total amount
-                cur.execute("SELECT SUM(amount) FROM orders WHERE status = 'approved'")
-                total_amount = cur.fetchone()[0] or 0
                 
                 # Get seats sold
                 cur.execute("SELECT SUM(sold) FROM seats")
@@ -1477,14 +1476,76 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 cur.execute("SELECT SUM(max_slots - sold) FROM seats WHERE status = 'active'")
                 available_slots = cur.fetchone()[0] or 0
                 
+                # Sales statistics
+                # Today's sales
+                cur.execute("""
+                    SELECT COUNT(*), COALESCE(SUM(amount), 0) 
+                    FROM orders 
+                    WHERE status = 'approved' 
+                    AND DATE(created_at) = CURRENT_DATE
+                """)
+                today_count, today_amount = cur.fetchone()
+                today_amount = today_amount or 0
+                
+                # This week's sales (current week)
+                cur.execute("""
+                    SELECT COUNT(*), COALESCE(SUM(amount), 0) 
+                    FROM orders 
+                    WHERE status = 'approved' 
+                    AND DATE(created_at) >= DATE_TRUNC('week', CURRENT_DATE)
+                """)
+                week_count, week_amount = cur.fetchone()
+                week_amount = week_amount or 0
+                
+                # This month's sales
+                cur.execute("""
+                    SELECT COUNT(*), COALESCE(SUM(amount), 0) 
+                    FROM orders 
+                    WHERE status = 'approved' 
+                    AND DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
+                """)
+                month_count, month_amount = cur.fetchone()
+                month_amount = month_amount or 0
+                
+                # Total sales
+                cur.execute("SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'approved'")
+                total_amount = cur.fetchone()[0] or 0
+                
+                # Convert to USD
+                today_usd = today_amount / usd_rate if usd_rate > 0 else 0
+                week_usd = week_amount / usd_rate if usd_rate > 0 else 0
+                month_usd = month_amount / usd_rate if usd_rate > 0 else 0
+                total_usd = total_amount / usd_rate if usd_rate > 0 else 0
+                
                 # Format statistics message
                 stats_message = (
                     f"📊 *آمار سیستم*\n\n"
                     f"👤 تعداد کاربران: *{user_count:,}*\n"
                     f"💳 تعداد فروش: *{approved_sales:,}*\n"
-                    f"💰 مبلغ کل فروش: *{total_amount:,} تومان*\n\n"
-                    f"💺 صندلی‌های فروخته شده: *{int(seats_sold):,}*\n"
-                    f"💿 ظرفیت باقیمانده: *{int(available_slots):,}*"
+                    f"💺 صندلی‌های فروخته: *{int(seats_sold):,}*\n"
+                    f"💿 ظرفیت باقیمانده: *{int(available_slots):,}*\n\n"
+                    
+                    f"💰 *فروش امروز:*\n"
+                    f"├ تعداد: {today_count:,}\n"
+                    f"├ تومان: {today_amount:,}\n"
+                    f"└ دلار: ${today_usd:.2f}\n\n"
+                    
+                    f"📅 *فروش هفته:*\n"
+                    f"├ تعداد: {week_count:,}\n"
+                    f"├ تومان: {week_amount:,}\n"
+                    f"└ دلار: ${week_usd:.2f}\n\n"
+                    
+                    f"📆 *فروش این ماه:*\n"
+                    f"├ تعداد: {month_count:,}\n"
+                    f"├ تومان: {month_amount:,}\n"
+                    f"└ دلار: ${month_usd:.2f}\n\n"
+                    
+                    f"🏆 *فروش کل:*\n"
+                    f"├ تعداد: {approved_sales:,}\n"
+                    f"├ تومان: {total_amount:,}\n"
+                    f"└ دلار: ${total_usd:.2f}\n\n"
+                    
+                    f"💱 نرخ دلار: {usd_rate:,} تومان"
                 )
                 
                 # Send statistics
@@ -1692,27 +1753,62 @@ async def handle_utm_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         with db.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT keyword, starts, buys, amount FROM utm_stats ORDER BY starts DESC"
+                    "SELECT keyword, starts, buys, amount "
+                    "FROM utm_stats ORDER BY starts DESC"
                 )
                 utm_stats = cur.fetchall()
         
         if not utm_stats:
             # No stats available
             await query.edit_message_text(
-                "📈 *آمار UTM*\n\n"
-                "آماری ثبت نشده است.",
+                "📈 *UTM Stats*\n\n"
+                "No statistics recorded yet.",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
             return
         
-        # Format stats using tabulate
-        headers = ["keyword", "شروع", "خرید", "مبلغ"]
-        table = tabulate(utm_stats, headers=headers, tablefmt="github")
+        # Format stats using tabulate in English
+        headers = ["Keyword", "Starts", "Buys", "Amount (T)"]
         
-        # Build the message
-        message = f"📈 *آمار لینک‌های UTM*\n\n"
-        message += f"```\n{table}\n```"
+        # Format the data for better readability
+        formatted_data = []
+        total_starts = 0
+        total_buys = 0
+        total_amount = 0
+        
+        for keyword, starts, buys, amount in utm_stats:
+            formatted_data.append([
+                keyword,
+                f"{starts:,}",
+                f"{buys:,}",
+                f"{amount:,}"
+            ])
+            total_starts += starts
+            total_buys += buys
+            total_amount += amount
+        
+        # Add totals row
+        formatted_data.append([
+            "TOTAL",
+            f"{total_starts:,}",
+            f"{total_buys:,}",
+            f"{total_amount:,}"
+        ])
+        
+        table = tabulate(formatted_data, headers=headers, tablefmt="grid")
+        
+        # Calculate conversion rate
+        conversion_rate = (total_buys / total_starts * 100) if total_starts > 0 else 0
+        
+        # Build the message in English
+        message = f"📈 *UTM Campaign Statistics*\n\n"
+        message += f"```\n{table}\n```\n\n"
+        message += f"📊 *Summary:*\n"
+        message += f"• Total Campaigns: {len(utm_stats)}\n"
+        message += f"• Conversion Rate: {conversion_rate:.2f}%\n"
+        message += f"• Avg Revenue/Start: {(total_amount/total_starts):,.0f}T\n" if total_starts > 0 else "• Avg Revenue/Start: 0T\n"
+        message += f"• Avg Order Value: {(total_amount/total_buys):,.0f}T" if total_buys > 0 else "• Avg Order Value: 0T"
         
         # Send the formatted table
         await query.edit_message_text(
@@ -1724,7 +1820,7 @@ async def handle_utm_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except Exception as e:
         logger.error(f"Error displaying UTM stats: {e}")
         await query.edit_message_text(
-            "❌ *خطا در نمایش آمار UTM*\n\n"
+            "❌ *Error displaying UTM stats*\n\n"
             f"`{str(e)[:200]}`",
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
@@ -2416,8 +2512,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "back_to_menu":
         # Return to main menu
         await query.edit_message_text(
-            f"🌬 *به بات فروش سرویس ویند خوش آمدید*\n\n"
-            f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
+        f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
+        f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
