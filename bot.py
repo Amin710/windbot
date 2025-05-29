@@ -1647,6 +1647,8 @@ async def handle_admin_usd_rate(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()  # Answer the callback query
     
+    logger.info(f"handle_admin_usd_rate called for user {update.effective_user.id}")
+    
     # Get current USD rate
     current_rate = db.get_setting('usd_rate', '0')
     
@@ -1659,6 +1661,7 @@ async def handle_admin_usd_rate(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Set next state
     context.user_data['admin_action'] = 'set_usd_rate'
+    logger.info(f"Returning state ADMIN_WAITING_USD_RATE ({ADMIN_WAITING_USD_RATE}) from handle_admin_usd_rate")
     return ADMIN_WAITING_USD_RATE
 
 
@@ -2501,7 +2504,10 @@ async def admin_process_input(update: Update, context: ContextTypes.DEFAULT_TYPE
     message_text = update.message.text.strip()
     action = context.user_data.get('admin_action')
     
+    logger.info(f"admin_process_input called for user {user.id} with action '{action}' and text '{message_text}'")
+    
     if not action:
+        logger.error(f"No admin_action found in context.user_data for user {user.id}")
         await update.message.reply_text("خطای سیستمی. لطفا مجددا /admin را اجرا کنید.")
         return -1  # End conversation
     
