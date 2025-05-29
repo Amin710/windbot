@@ -1900,6 +1900,8 @@ async def handle_change_price(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()  # Answer the callback query
     user = update.effective_user
     
+    logger.info(f"handle_change_price called for user {user.id}")
+    
     # Check if user is admin
     is_admin = await check_admin(user.id)
     if not is_admin:
@@ -1920,6 +1922,7 @@ async def handle_change_price(update: Update, context: ContextTypes.DEFAULT_TYPE
         parse_mode="Markdown"
     )
     
+    logger.info(f"Returning state ADMIN_WAITING_PRICE ({ADMIN_WAITING_PRICE}) from handle_change_price")
     return ADMIN_WAITING_PRICE
 
 
@@ -3352,7 +3355,14 @@ def main() -> None:
             # Add handler for seat editing
             ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_seat_edit)],
         },
-        fallbacks=[CommandHandler("cancel", lambda u, c: -1)],
+        fallbacks=[
+            CommandHandler("cancel", lambda u, c: -1),
+            CallbackQueryHandler(handle_admin_usd_rate, pattern=r'^admin:usd$'),
+            CallbackQueryHandler(handle_change_price, pattern=r'^admin:price$'),
+            CallbackQueryHandler(handle_add_seat, pattern=r'^admin:addseat$'),
+            CallbackQueryHandler(handle_bulk_csv, pattern=r'^admin:bulkcsv$'),
+        ],
+        allow_reentry=True,
         name="admin_conversation"
     )
     application.add_handler(admin_conv_handler)
