@@ -2493,7 +2493,50 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
     # Admin panel callbacks
     elif data.startswith("admin:"):
-        # Check if user is admin
+        # Handle admin back button first
+        if data == "admin:back":
+            try:
+                logger.info(f"admin:back callback received from user {user.id}")
+                
+                # Check if user is admin
+                is_admin = await check_admin(user.id)
+                logger.info(f"User {user.id} admin check result: {is_admin}")
+                
+                if not is_admin:
+                    logger.warning(f"User {user.id} attempted admin:back but is not admin")
+                    await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+                    return
+                
+                logger.info(f"Getting admin keyboard...")
+                try:
+                    admin_keyboard = get_admin_keyboard()
+                    logger.info(f"Admin keyboard created successfully")
+                except Exception as kb_error:
+                    logger.error(f"Error creating admin keyboard: {kb_error}")
+                    raise kb_error
+                
+                logger.info(f"Editing message for admin:back - user {user.id}")
+                
+                # Return to admin panel
+                await query.edit_message_text(
+                    f"💻 *پنل مدیریت*\n\n"
+                    f"به پنل مدیریت بات خوش آمدید.\n"
+                    f"لطفا گزینه مورد نظر خود را انتخاب کنید:",
+                    reply_markup=admin_keyboard,
+                    parse_mode="Markdown"
+                )
+                
+                logger.info(f"Successfully returned to admin panel for user {user.id}")
+                return
+                
+            except Exception as e:
+                logger.error(f"Error in admin:back callback for user {user.id}: {e}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                await query.answer(f"خطا: {str(e)[:100]}", show_alert=True)
+                return
+        
+        # Check if user is admin for other admin actions
         is_admin = await check_admin(user.id)
         if not is_admin:
             await query.edit_message_text("شما دسترسی ادمین ندارید.")
@@ -2919,47 +2962,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except (ValueError, IndexError) as e:
             logger.error(f"Invalid card edit ID format: {e}")
             await query.answer("خطا در ویرایش کارت", show_alert=True)
-
-    # Handle admin back button
-    elif data == "admin:back":
-        try:
-            logger.info(f"admin:back callback received from user {user.id}")
-            
-            # Check if user is admin
-            is_admin = await check_admin(user.id)
-            logger.info(f"User {user.id} admin check result: {is_admin}")
-            
-            if not is_admin:
-                logger.warning(f"User {user.id} attempted admin:back but is not admin")
-                await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
-                return
-            
-            logger.info(f"Getting admin keyboard...")
-            try:
-                admin_keyboard = get_admin_keyboard()
-                logger.info(f"Admin keyboard created successfully")
-            except Exception as kb_error:
-                logger.error(f"Error creating admin keyboard: {kb_error}")
-                raise kb_error
-            
-            logger.info(f"Editing message for admin:back - user {user.id}")
-            
-            # Return to admin panel
-            await query.edit_message_text(
-                f"💻 *پنل مدیریت*\n\n"
-                f"به پنل مدیریت بات خوش آمدید.\n"
-                f"لطفا گزینه مورد نظر خود را انتخاب کنید:",
-                reply_markup=admin_keyboard,
-                parse_mode="Markdown"
-            )
-            
-            logger.info(f"Successfully returned to admin panel for user {user.id}")
-            
-        except Exception as e:
-            logger.error(f"Error in admin:back callback for user {user.id}: {e}")
-            import traceback
-            logger.error(f"Full traceback: {traceback.format_exc()}")
-            await query.answer(f"خطا: {str(e)[:100]}", show_alert=True)
 
     # Handle quick TOTP code generation (alert style)
     elif data.startswith("code:"):
