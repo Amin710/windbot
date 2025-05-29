@@ -92,6 +92,11 @@ async def handle_accounts_list(update: Update, context: ContextTypes.DEFAULT_TYP
                 
                 keyboard.append(pagination)
                 
+                # Add delete all button above back button
+                keyboard.append([
+                    InlineKeyboardButton("🗑️ حذف همه اکانت‌ها", callback_data="admin:deleteall")
+                ])
+                
                 # Add back button
                 keyboard.append([
                     InlineKeyboardButton("🔙 بازگشت", callback_data="admin:back")
@@ -392,5 +397,145 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         logger.error(f"Error editing seat: {e}")
         await message.reply_text(
             f"❌ *خطا در ویرایش اکانت*\n\n`{str(e)[:200]}`",
+            parse_mode="Markdown"
+        )
+
+async def handle_delete_all_accounts_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Show confirmation prompt for deleting all accounts.
+    
+    Args:
+        update: The update object
+        context: The context object
+    """
+    query = update.callback_query
+    user = update.effective_user
+    
+    # Check if user is admin
+    is_admin = await check_admin(user.id)
+    if not is_admin:
+        await query.edit_message_text("شما دسترسی ادمین ندارید.")
+        return
+    
+    try:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                # Get count of active accounts
+                cur.execute("SELECT COUNT(*) FROM seats WHERE status = 'active'")
+                active_count = cur.fetchone()[0]
+                
+                # Get count of accounts with active orders
+                cur.execute("""
+                    SELECT COUNT(DISTINCT s.id) 
+                    FROM seats s 
+                    JOIN orders o ON s.id = o.seat_id 
+                    WHERE s.status = 'active' AND o.status = 'approved'
+                """)
+                with_orders_count = cur.fetchone()[0]
+                
+                if active_count == 0:
+                    await query.edit_message_text(
+                        "ℹ️ *هیچ اکانت فعالی وجود ندارد*",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔙 بازگشت", callback_data="admin:list|1")]
+                        ]),
+                        parse_mode="Markdown"
+                    )
+                    return
+                
+                # Create confirmation keyboard
+                keyboard = [
+                    [
+                        InlineKeyboardButton("✅ تایید حذف", callback_data="admin:deleteall:confirm"),
+                        InlineKeyboardButton("❌ انصراف", callback_data="admin:list|1")
+                    ]
+                ]
+                
+                # Show warning message
+                warning_message = (
+                    f"⚠️ *هشدار: حذف همه اکانت‌ها*\n\n"
+                    f"📊 تعداد اکانت‌های فعال: {active_count:,}\n"
+                    f"⚠️ اکانت‌های دارای سفارش فعال: {with_orders_count:,}\n\n"
+                    f"🚨 *توجه:* این عمل تمام اکانت‌های فعال را غیرفعال می‌کند.\n"
+                    f"اکانت‌هایی که سفارش فعال دارند نیز غیرفعال خواهند شد.\n\n"
+                    f"❓ آیا مطمئن هستید که می‌خواهید ادامه دهید؟"
+                )
+                
+                await query.edit_message_text(
+                    warning_message,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+                
+    except Exception as e:
+        logger.error(f"Error showing delete all prompt: {e}")
+        await query.edit_message_text(
+            f"❌ *خطا در نمایش فرم تایید*\n\n`{str(e)[:200]}`",
+            parse_mode="Markdown"
+        )
+
+async def handle_delete_all_accounts_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Actually delete all accounts after confirmation.
+    
+    Args:
+        update: The update object
+        context: The context object
+    """
+    query = update.callback_query
+    user = update.effective_user
+    
+    # Check if user is admin
+    is_admin = await check_admin(user.id)
+    if not is_admin:
+        await query.edit_message_text("شما دسترسی ادمین ندارید.")
+        return
+    
+    # Show processing message
+    await query.edit_message_text(
+        "⏳ *در حال حذف همه اکانت‌ها...*\n\nلطفا منتظر بمانید...",
+        parse_mode="Markdown"
+    )
+    
+    try:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                # Get count before deletion
+                cur.execute("SELECT COUNT(*) FROM seats WHERE status = 'active'")
+                active_count = cur.fetchone()[0]
+                
+                # Disable all active accounts (soft delete)
+                cur.execute("UPDATE seats SET status = 'disabled' WHERE status = 'active'")
+                affected_rows = cur.rowcount
+                conn.commit()
+                
+                # Show success message
+                success_message = (
+                    f"✅ *حذف همه اکانت‌ها با موفقیت انجام شد*\n\n"
+                    f"📊 تعداد اکانت‌های حذف شده: {affected_rows:,}\n"
+                    f"🔄 وضعیت: غیرفعال شده\n\n"
+                    f"ℹ️ اکانت‌ها به صورت نرم‌افزاری حذف شده‌اند و در صورت نیاز قابل بازیابی هستند."
+                )
+                
+                keyboard = [
+                    [InlineKeyboardButton("🔙 بازگشت به لیست", callback_data="admin:list|1")]
+                ]
+                
+                await query.edit_message_text(
+                    success_message,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown"
+                )
+                
+                # Log this action
+                logger.info(f"Admin {user.id} deleted all accounts. Count: {affected_rows}")
+                
+    except Exception as e:
+        logger.error(f"Error deleting all accounts: {e}")
+        await query.edit_message_text(
+            f"❌ *خطا در حذف اکانت‌ها*\n\n`{str(e)[:200]}`",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="admin:list|1")]
+            ]),
             parse_mode="Markdown"
         )

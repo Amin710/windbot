@@ -2808,6 +2808,17 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
             await handle_accounts_list(update, context, page)
             
+        elif admin_action == "deleteall":
+            # Show delete all accounts confirmation prompt
+            from handlers.admin_accounts import handle_delete_all_accounts_prompt
+            await handle_delete_all_accounts_prompt(update, context)
+            
+        elif admin_action.startswith("deleteall:"):
+            # Handle delete all accounts confirmation
+            if admin_action == "deleteall:confirm":
+                from handlers.admin_accounts import handle_delete_all_accounts_confirm
+                await handle_delete_all_accounts_confirm(update, context)
+            
         # Other admin actions would be handled here
     
     # Handle order approval
