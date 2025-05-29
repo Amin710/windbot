@@ -889,7 +889,7 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Get one-month price from settings
     amount = int(db.get_setting('one_month_price', '70000'))
     plan_description = "اشتراک یک‌ماهه ویندسکرایب"
-    amount_display = f"{amount:,} تومان"
+    amount_display = f"{amount:,}"
     
     # Get user ID
     user = update.effective_user
@@ -931,17 +931,16 @@ async def show_purchase_info(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Store order_id in user_data for handling receipt
     context.user_data['pending_order_id'] = order_id
     
-    # Send payment instructions
-    payment_message = card_manager.format_payment_message(card_title, card_number, amount)
-    
+    # Create new payment message format
     message = (
-        f"💳 *اطلاعات پرداخت*\n\n"
-        f"🕊 نوع پلن: *{plan_description}*\n"
-        f"💰 مبلغ: *{amount_display}*\n\n"
-        f"{payment_message}\n\n"
-        f"📧 شناسه سفارش: `#{order_id}`\n\n"
-        f"❌ *لطفا شناسه سفارش را در توضیحات واریز ذکر کنید*\n\n"
-        f"📷 پس از پرداخت، لطفا عکس رسید پرداخت خود را ارسال کنید."
+        f"💳 اطلاعات پرداخت:\n\n"
+        f"🕊 نوع پلن: {plan_description}\n\n"
+        f"مبلغ {amount_display} تومان به کارت زیر واریز کرده و اسکرین شات واریز رو همین‌جا در ربات ارسال کنید\n"
+        f"🔻🔻\n"
+        f"{card_number}\n"
+        f"{card_title}\n\n"
+        f"تایید تراکنش شما به نوبت در سریع‌ترین زمان ممکن انجام خواهد شد🙏\n\n"
+        f"❔در صورت مشکل در پرداخت، از همراه بانک، تاپ، ۷۸۰، بله یا خودپرداز ATM استفاده کنید"
     )
     
     # Add back button
@@ -1044,8 +1043,8 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # Send confirmation to user
     await update.message.reply_text(
-        f"✅ رسید پرداخت شما برای سفارش #{pending_order_id} دریافت شد.\n\n"
-        f"✏️ سفارش شما در حال بررسی است و به زودی نتیجه آن اعلام خواهد شد."
+        f"با تشکر، سفارش شما ثبت شد و در انتظار تایید می‌باشد ✅\n\n"
+        f"فرایند تایید ممکنه تا چند ساعت زمان ببره لطفا از پیام به پشتیبانی خودداری کنید"
     )
     
     # Forward receipt to admin channel
