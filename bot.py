@@ -1913,8 +1913,9 @@ async def handle_change_price(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Get current price
     current_price = int(db.get_setting('one_month_price', '70000'))
     
-    # Set the awaiting flag and send instructions
+    # Set the awaiting flag and price type
     context.user_data['awaiting_price'] = True
+    context.user_data['price_type'] = 'one_month_price'  # Set the correct price type
     
     await query.edit_message_text(
         f"💸 *تغییر قیمت سرویس*\n\n"
