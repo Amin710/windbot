@@ -3086,12 +3086,22 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Reply with the code
-                    await query.edit_message_text(
-                        f"📲 *کد 2FA شما*: `{code}`\n\n"
-                        f"⏰ این کد به مدت 30 ثانیه معتبر است.\n"
-                        f"✅ برای دریافت کد جدید، مجددا روی دکمه کلیک کنید.",
-                        reply_markup=get_2fa_button(seat_id),
+                    # Calculate remaining seconds until code expires
+                    remaining_seconds = 30 - (int(time.time()) % 30)
+                    
+                    # Create appropriate message based on attempt count
+                    if new_count == 1:
+                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
+                    elif new_count == 2:
+                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
+                    
+                    # Answer callback query first
+                    await query.answer()
+                    
+                    # Send 2FA code as a separate message
+                    await context.bot.send_message(
+                        chat_id=user.id,
+                        text=message_text,
                         parse_mode="Markdown"
                     )
         except Exception as e:
