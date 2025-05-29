@@ -21,6 +21,8 @@ import json
 import logging
 import os
 import re
+import subprocess
+import tempfile
 import uuid
 import telegram
 import time
