@@ -169,7 +169,7 @@ def get_main_menu_keyboard():
         ],
         [
             InlineKeyboardButton("💰 کیف پول", callback_data="wallet"),
-            InlineKeyboardButton("📣 کسب اعتبار با دعوت دوستان", callback_data="menu:ref")
+            InlineKeyboardButton("📣 کسب اعتبار  ", callback_data="menu:ref")
         ],
         [
             InlineKeyboardButton("💬 پشتیبانی", callback_data="support")
@@ -297,7 +297,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Send welcome message with main menu
     await update.message.reply_text(
-        f"🌬 *به بات فروش سرویس ویند خوش آمدید*\n\n"
+        f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
         f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
