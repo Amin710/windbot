@@ -3353,9 +3353,7 @@ def main() -> None:
             ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_seat_edit)],
         },
         fallbacks=[CommandHandler("cancel", lambda u, c: -1)],
-        name="admin_conversation",
-        per_message=True,  # مهم: اضافه کردن این پارامتر برای رفع مشکل
-        per_chat=True       # مهم: اطمینان از تفکیک مکالمات بر اساس چت
+        name="admin_conversation"
     )
     application.add_handler(admin_conv_handler)
     
