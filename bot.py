@@ -338,7 +338,7 @@ def get_admin_keyboard():
             InlineKeyboardButton("💵 تغییر قیمت", callback_data="admin:price")
         ],
         [
-            InlineKeyboardButton("🔧 تغییر قیمت یک‌ماهه", callback_data="admin:price1")
+            InlineKeyboardButton("💱 تغییر نرخ دلار", callback_data="admin:usd")
         ],
         [
             InlineKeyboardButton("💳 مدیریت کارت‌ها", callback_data="admin:cards"),
@@ -2765,13 +2765,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             
         elif admin_action == "price":
             # Change service price
-            from handlers.admin_price import handle_change_price
-            await handle_change_price(update, context, "service_price")
+            try:
+                from handlers.admin_price import handle_change_price
+                await handle_change_price(update, context, "service_price")
+            except ImportError:
+                # Fallback to built-in handler
+                await handle_change_price(update, context)
             
-        elif admin_action == "price1":
-            # Change one-month price
-            from handlers.admin_price import handle_change_price
-            await handle_change_price(update, context, "one_month_price")
+        elif admin_action == "usd":
+            # Change USD rate
+            await handle_admin_usd_rate(update, context)
             
         elif admin_action == "utm":
             # Show UTM statistics
