@@ -1457,29 +1457,54 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                # Get USD rate
-                usd_rate = int(db.get_setting('usd_rate', '70000'))  # Default 70,000 Toman per USD
+                # Get USD rate with error handling
+                try:
+                    usd_rate = int(db.get_setting('usd_rate', '70000'))  # Default 70,000 Toman per USD
+                except:
+                    usd_rate = 70000
                 
-                # User registration statistics
-                # Users registered today
-                cur.execute("""
-                    SELECT COUNT(*) 
-                    FROM users 
-                    WHERE DATE(created_at) = CURRENT_DATE
-                """)
-                users_today = cur.fetchone()[0]
+                # User registration statistics with error handling
+                users_today = 0
+                users_this_month = 0
+                total_users = 0
                 
-                # Users registered this month
-                cur.execute("""
-                    SELECT COUNT(*) 
-                    FROM users 
-                    WHERE DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
-                """)
-                users_this_month = cur.fetchone()[0]
-                
-                # Total users
-                cur.execute("SELECT COUNT(*) FROM users")
-                total_users = cur.fetchone()[0]
+                try:
+                    # Check if created_at column exists first
+                    cur.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = 'created_at'
+                    """)
+                    has_created_at = cur.fetchone() is not None
+                    
+                    if has_created_at:
+                        # Users registered today
+                        cur.execute("""
+                            SELECT COUNT(*) 
+                            FROM users 
+                            WHERE DATE(created_at) = CURRENT_DATE
+                        """)
+                        users_today = cur.fetchone()[0]
+                        
+                        # Users registered this month
+                        cur.execute("""
+                            SELECT COUNT(*) 
+                            FROM users 
+                            WHERE DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
+                        """)
+                        users_this_month = cur.fetchone()[0]
+                    
+                    # Total users
+                    cur.execute("SELECT COUNT(*) FROM users")
+                    total_users = cur.fetchone()[0]
+                    
+                except Exception as user_error:
+                    logger.error(f"Error getting user stats: {user_error}")
+                    # Fallback to just total users
+                    cur.execute("SELECT COUNT(*) FROM users")
+                    total_users = cur.fetchone()[0]
+                    users_today = 0
+                    users_this_month = 0
                 
                 # Get approved sales count
                 cur.execute("SELECT COUNT(*) FROM orders WHERE status = 'approved'")
@@ -1493,40 +1518,61 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 cur.execute("SELECT SUM(max_slots - sold) FROM seats WHERE status = 'active'")
                 available_slots = cur.fetchone()[0] or 0
                 
-                # Sales statistics
-                # Today's sales
-                cur.execute("""
-                    SELECT COUNT(*), COALESCE(SUM(amount), 0) 
-                    FROM orders 
-                    WHERE status = 'approved' 
-                    AND DATE(created_at) = CURRENT_DATE
-                """)
-                today_count, today_amount = cur.fetchone()
-                today_amount = today_amount or 0
+                # Sales statistics with error handling
+                today_count, today_amount = 0, 0
+                week_count, week_amount = 0, 0
+                month_count, month_amount = 0, 0
+                total_amount = 0
                 
-                # This week's sales (current week)
-                cur.execute("""
-                    SELECT COUNT(*), COALESCE(SUM(amount), 0) 
-                    FROM orders 
-                    WHERE status = 'approved' 
-                    AND DATE(created_at) >= DATE_TRUNC('week', CURRENT_DATE)
-                """)
-                week_count, week_amount = cur.fetchone()
-                week_amount = week_amount or 0
-                
-                # This month's sales
-                cur.execute("""
-                    SELECT COUNT(*), COALESCE(SUM(amount), 0) 
-                    FROM orders 
-                    WHERE status = 'approved' 
-                    AND DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
-                """)
-                month_count, month_amount = cur.fetchone()
-                month_amount = month_amount or 0
-                
-                # Total sales
-                cur.execute("SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'approved'")
-                total_amount = cur.fetchone()[0] or 0
+                try:
+                    # Check if created_at column exists in orders table
+                    cur.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'orders' AND column_name = 'created_at'
+                    """)
+                    has_orders_created_at = cur.fetchone() is not None
+                    
+                    if has_orders_created_at:
+                        # Today's sales
+                        cur.execute("""
+                            SELECT COUNT(*), COALESCE(SUM(amount), 0) 
+                            FROM orders 
+                            WHERE status = 'approved' 
+                            AND DATE(created_at) = CURRENT_DATE
+                        """)
+                        today_count, today_amount = cur.fetchone()
+                        today_amount = today_amount or 0
+                        
+                        # This week's sales (current week)
+                        cur.execute("""
+                            SELECT COUNT(*), COALESCE(SUM(amount), 0) 
+                            FROM orders 
+                            WHERE status = 'approved' 
+                            AND DATE(created_at) >= DATE_TRUNC('week', CURRENT_DATE)
+                        """)
+                        week_count, week_amount = cur.fetchone()
+                        week_amount = week_amount or 0
+                        
+                        # This month's sales
+                        cur.execute("""
+                            SELECT COUNT(*), COALESCE(SUM(amount), 0) 
+                            FROM orders 
+                            WHERE status = 'approved' 
+                            AND DATE(created_at) >= DATE_TRUNC('month', CURRENT_DATE)
+                        """)
+                        month_count, month_amount = cur.fetchone()
+                        month_amount = month_amount or 0
+                    
+                    # Total sales
+                    cur.execute("SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'approved'")
+                    total_amount = cur.fetchone()[0] or 0
+                    
+                except Exception as sales_error:
+                    logger.error(f"Error getting sales stats: {sales_error}")
+                    # Fallback to just total amount
+                    cur.execute("SELECT COALESCE(SUM(amount), 0) FROM orders WHERE status = 'approved'")
+                    total_amount = cur.fetchone()[0] or 0
                 
                 # Convert to USD
                 today_usd = today_amount / usd_rate if usd_rate > 0 else 0
@@ -1576,8 +1622,10 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 )
     except Exception as e:
         logger.error(f"Error getting admin stats: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         await query.edit_message_text(
-            "خطا در دریافت آمار. لطفا بعدا تلاش کنید.",
+            f"خطا در دریافت آمار: {str(e)[:100]}",
             reply_markup=get_admin_keyboard()
         )
 
