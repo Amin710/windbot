@@ -3718,7 +3718,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"📱 *آموزش ورود به اکانت در ویندسکرایب*\n\n"
                 f"📥 *دانلود اپلیکیشن:*\n"
                 f"• [لینک پلی استور](https://play.google.com/store/apps/details?id=com.windscribe.vpn)\n"
-                f"• [دانلود فایل مستقیم](https://t.me/your_channel_post)\n\n"
+                f"• [دانلود لینک مستقیم](https://t.me/AccYarVPN/5)\n\n"
                 f"🔧 *آموزش ورود:*\n"
                 f"1️⃣ برنامه ویندسکرایب را نصب و باز کنید\n"
                 f"2️⃣ روی دکمه *Login* کلیک کنید\n"
