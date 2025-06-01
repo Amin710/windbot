@@ -2662,7 +2662,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "back_to_menu":
         # Return to main menu
         await query.edit_message_text(
-        f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
+        f"👤 * به ربات "اکانت یار" : فروش اکانت قانونی فیلترشکن خوش آمدید👋*\n\n"
         f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
