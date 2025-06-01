@@ -171,27 +171,51 @@ REQUIRED_CHANNELS = []
 async def load_force_join_settings():
     """Load force join settings from database."""
     global FORCE_JOIN_ENABLED, REQUIRED_CHANNELS
+    
+    # Set defaults first
+    FORCE_JOIN_ENABLED = False
+    REQUIRED_CHANNELS = []
+    
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                # Get force join enabled status
-                cur.execute("SELECT val FROM settings WHERE key = 'force_join_enabled'")
-                result = cur.fetchone()
-                FORCE_JOIN_ENABLED = result and result[0].lower() == 'true'
+                # Try to get force join enabled status
+                try:
+                    cur.execute("SELECT val FROM settings WHERE key = 'force_join_enabled'")
+                    result = cur.fetchone()
+                    if result:
+                        FORCE_JOIN_ENABLED = result[0].lower() == 'true'
+                except Exception as e:
+                    logger.warning(f"force_join_enabled setting not found, using default: {e}")
+                    # Try to create the setting if it doesn't exist
+                    try:
+                        cur.execute("INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'false') ON CONFLICT (key) DO NOTHING")
+                    except:
+                        pass
                 
-                # Get required channels list
-                cur.execute("SELECT val FROM settings WHERE key = 'required_channels'")
-                result = cur.fetchone()
-                if result and result[0]:
-                    # Parse comma-separated channel IDs/usernames
-                    REQUIRED_CHANNELS = [ch.strip() for ch in result[0].split(',') if ch.strip()]
-                else:
-                    REQUIRED_CHANNELS = []
+                # Try to get required channels list
+                try:
+                    cur.execute("SELECT val FROM settings WHERE key = 'required_channels'")
+                    result = cur.fetchone()
+                    if result and result[0]:
+                        # Parse comma-separated channel IDs/usernames
+                        REQUIRED_CHANNELS = [ch.strip() for ch in result[0].split(',') if ch.strip()]
+                except Exception as e:
+                    logger.warning(f"required_channels setting not found, using default: {e}")
+                    # Try to create the setting if it doesn't exist
+                    try:
+                        cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', '') ON CONFLICT (key) DO NOTHING")
+                    except:
+                        pass
+                
+                # Commit any new settings
+                conn.commit()
                     
         logger.info(f"Force join settings loaded: enabled={FORCE_JOIN_ENABLED}, channels={REQUIRED_CHANNELS}")
                     
     except Exception as e:
         logger.error(f"Error loading force join settings: {e}")
+        # Keep defaults
         FORCE_JOIN_ENABLED = False
         REQUIRED_CHANNELS = []
 
@@ -3781,77 +3805,110 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def async_main() -> None:
     """Async main function to properly handle event loop."""
-    # Create the Application
-    if not BOT_TOKEN:
-        logger.error("BOT_TOKEN is not set in environment variables")
-        return
+    try:
+        logger.info("Starting async_main...")
+        
+        # Create the Application
+        if not BOT_TOKEN:
+            logger.error("BOT_TOKEN is not set in environment variables")
+            return
 
-    application = Application.builder().token(BOT_TOKEN).build()
+        logger.info("BOT_TOKEN is set, creating application...")
+        application = Application.builder().token(BOT_TOKEN).build()
+        logger.info("Application created successfully")
 
-    # Initialize database
-    db.init_db()
-    
-    # Load force join settings
-    await load_force_join_settings()
-    
-    # Register handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("menu", menu))  # Alias for start
-    application.add_handler(CommandHandler("buy", buy_command))
-    application.add_handler(CommandHandler("admin", admin_command))
-    application.add_handler(CommandHandler("broadcast", broadcast_command))
-    application.add_handler(CommandHandler("help", help_command))
-    
-    # Photo handler for receipts
-    application.add_handler(MessageHandler(filters.PHOTO, handle_receipt_photo))
-    
-    # Admin conversation handlers - MOVED BEFORE main CallbackQueryHandler
-    from telegram.ext import ConversationHandler
-    # Import seat editing handler
-    from handlers.admin_accounts import process_seat_edit
-    
-    admin_conv_handler = ConversationHandler(
-        entry_points=[
-            CallbackQueryHandler(handle_admin_usd_rate, pattern=r'^admin:usd$'),
-            CallbackQueryHandler(handle_change_price, pattern=r'^admin:price$'),
-            CallbackQueryHandler(handle_add_seat, pattern=r'^admin:addseat$'),
-            CallbackQueryHandler(handle_bulk_csv, pattern=r'^admin:bulkcsv$'),
-        ],
-        states={
-            ADMIN_WAITING_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
-            ADMIN_WAITING_USD_RATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
-            ADMIN_WAITING_SEAT_INFO: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_add_seat)],
-            ADMIN_WAITING_CSV: [MessageHandler(filters.Document.ALL, process_csv_upload)],
-            ADMIN_WAITING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_price_input)],
-            # Add handler for seat editing
-            ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_seat_edit)],
-        },
-        fallbacks=[
-            CommandHandler("cancel", lambda u, c: -1),
-            CallbackQueryHandler(handle_admin_usd_rate, pattern=r'^admin:usd$'),
-            CallbackQueryHandler(handle_change_price, pattern=r'^admin:price$'),
-            CallbackQueryHandler(handle_add_seat, pattern=r'^admin:addseat$'),
-            CallbackQueryHandler(handle_bulk_csv, pattern=r'^admin:bulkcsv$'),
-        ],
-        allow_reentry=True,
-        name="admin_conversation"
-    )
-    application.add_handler(admin_conv_handler)
-    
-    # Callback query handler for inline keyboards - MOVED AFTER ConversationHandler
-    application.add_handler(CallbackQueryHandler(callback_handler))
-    
-    # Message handler for documents only (lowest priority)
-    application.add_handler(MessageHandler(
-        filters.Document.ALL & ~filters.COMMAND, 
-        message_handler
-    ))
-    
-    # Register error handler
-    application.add_error_handler(error_handler)
+        # Initialize database
+        logger.info("Initializing database...")
+        db.init_db()
+        logger.info("Database initialized successfully")
+        
+        # Load force join settings
+        logger.info("Loading force join settings...")
+        await load_force_join_settings()
+        logger.info("Force join settings loaded successfully")
+        
+        # Register handlers
+        logger.info("Registering command handlers...")
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("menu", menu))  # Alias for start
+        application.add_handler(CommandHandler("buy", buy_command))
+        application.add_handler(CommandHandler("admin", admin_command))
+        application.add_handler(CommandHandler("broadcast", broadcast_command))
+        application.add_handler(CommandHandler("help", help_command))
+        
+        # Photo handler for receipts
+        application.add_handler(MessageHandler(filters.PHOTO, handle_receipt_photo))
+        logger.info("Command handlers registered successfully")
+        
+        # Admin conversation handlers - MOVED BEFORE main CallbackQueryHandler
+        logger.info("Setting up conversation handlers...")
+        from telegram.ext import ConversationHandler
+        
+        # Try to import seat editing handler, fallback if not available
+        try:
+            from handlers.admin_accounts import process_seat_edit
+            seat_edit_handler = process_seat_edit
+            logger.info("Successfully imported process_seat_edit")
+        except ImportError as e:
+            logger.warning(f"Could not import process_seat_edit from handlers.admin_accounts: {e}")
+            # Create a dummy handler that just returns ConversationHandler.END
+            async def dummy_seat_edit(update, context):
+                await update.message.reply_text("Seat editing not available")
+                return ConversationHandler.END
+            seat_edit_handler = dummy_seat_edit
+        
+        admin_conv_handler = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(handle_admin_usd_rate, pattern=r'^admin:usd$'),
+                CallbackQueryHandler(handle_change_price, pattern=r'^admin:price$'),
+                CallbackQueryHandler(handle_add_seat, pattern=r'^admin:addseat$'),
+                CallbackQueryHandler(handle_bulk_csv, pattern=r'^admin:bulkcsv$'),
+            ],
+            states={
+                ADMIN_WAITING_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
+                ADMIN_WAITING_USD_RATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
+                ADMIN_WAITING_SEAT_INFO: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_add_seat)],
+                ADMIN_WAITING_CSV: [MessageHandler(filters.Document.ALL, process_csv_upload)],
+                ADMIN_WAITING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_price_input)],
+                # Add handler for seat editing
+                ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, seat_edit_handler)],
+            },
+            fallbacks=[
+                CommandHandler("cancel", lambda u, c: -1),
+                CallbackQueryHandler(handle_admin_usd_rate, pattern=r'^admin:usd$'),
+                CallbackQueryHandler(handle_change_price, pattern=r'^admin:price$'),
+                CallbackQueryHandler(handle_add_seat, pattern=r'^admin:addseat$'),
+                CallbackQueryHandler(handle_bulk_csv, pattern=r'^admin:bulkcsv$'),
+            ],
+            allow_reentry=True,
+            name="admin_conversation"
+        )
+        application.add_handler(admin_conv_handler)
+        logger.info("Conversation handlers set up successfully")
+        
+        # Callback query handler for inline keyboards - MOVED AFTER ConversationHandler
+        logger.info("Adding callback query handler...")
+        application.add_handler(CallbackQueryHandler(callback_handler))
+        
+        # Message handler for documents only (lowest priority)
+        application.add_handler(MessageHandler(
+            filters.Document.ALL & ~filters.COMMAND, 
+            message_handler
+        ))
+        
+        # Register error handler
+        application.add_error_handler(error_handler)
+        logger.info("All handlers registered successfully")
 
-    # Run the bot until the user presses Ctrl-C
-    await application.run_polling(allowed_updates=Update.ALL_TYPES)
+        # Run the bot until the user presses Ctrl-C
+        logger.info("Starting bot polling...")
+        await application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
+    except Exception as e:
+        logger.error(f"Critical error in async_main: {e}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise
 
 
 def main() -> None:
