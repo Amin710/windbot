@@ -207,8 +207,8 @@ async def load_force_join_settings():
     global FORCE_JOIN_ENABLED, REQUIRED_CHANNELS
     
     # Set defaults first
-    FORCE_JOIN_ENABLED = False
-    REQUIRED_CHANNELS = []
+    FORCE_JOIN_ENABLED = True  # Enable by default
+    REQUIRED_CHANNELS = ["-1002005670103"]  # Default channel - AccYarVPN channel
     
     try:
         with db.get_conn() as conn:
@@ -219,11 +219,16 @@ async def load_force_join_settings():
                     result = cur.fetchone()
                     if result:
                         FORCE_JOIN_ENABLED = result[0].lower() == 'true'
+                    else:
+                        # If setting doesn't exist, create it with enabled=true
+                        cur.execute("INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'true')")
+                        FORCE_JOIN_ENABLED = True
                 except Exception as e:
-                    logger.warning(f"force_join_enabled setting not found, using default: {e}")
+                    logger.warning(f"force_join_enabled setting not found, creating default: {e}")
                     # Try to create the setting if it doesn't exist
                     try:
-                        cur.execute("INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'false') ON CONFLICT (key) DO NOTHING")
+                        cur.execute("INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'true') ON CONFLICT (key) DO NOTHING")
+                        FORCE_JOIN_ENABLED = True
                     except:
                         pass
                 
@@ -234,11 +239,18 @@ async def load_force_join_settings():
                     if result and result[0]:
                         # Parse comma-separated channel IDs/usernames
                         REQUIRED_CHANNELS = [ch.strip() for ch in result[0].split(',') if ch.strip()]
+                    else:
+                        # If no channels set, create default
+                        default_channels = "-1002005670103"  # AccYarVPN channel ID
+                        cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', %s) ON CONFLICT (key) DO UPDATE SET val = EXCLUDED.val", (default_channels,))
+                        REQUIRED_CHANNELS = [default_channels]
                 except Exception as e:
-                    logger.warning(f"required_channels setting not found, using default: {e}")
+                    logger.warning(f"required_channels setting not found, creating default: {e}")
                     # Try to create the setting if it doesn't exist
                     try:
-                        cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', '') ON CONFLICT (key) DO NOTHING")
+                        default_channels = "-1002005670103"  # AccYarVPN channel ID
+                        cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', %s) ON CONFLICT (key) DO NOTHING", (default_channels,))
+                        REQUIRED_CHANNELS = [default_channels]
                     except:
                         pass
                 
@@ -250,8 +262,8 @@ async def load_force_join_settings():
     except Exception as e:
         logger.error(f"Error loading force join settings: {e}")
         # Keep defaults
-        FORCE_JOIN_ENABLED = False
-        REQUIRED_CHANNELS = []
+        FORCE_JOIN_ENABLED = True
+        REQUIRED_CHANNELS = ["-1002005670103"]  # AccYarVPN channel ID
 
 async def check_channel_membership(user_id: int, bot) -> tuple[bool, list]:
     """
@@ -288,7 +300,11 @@ async def get_channel_join_keyboard(missing_channels: list):
             elif channel.startswith('-100'):
                 # Private channel with numeric ID
                 join_url = f"https://t.me/c/{channel[4:]}"
-                button_text = f"🔗 عضویت در کانال"
+                # Special case for our AccYarVPN channel
+                if channel == "-1002005670103":
+                    button_text = f"🔗 عضویت در @AccYarVPN"
+                else:
+                    button_text = f"🔗 عضویت در کانال"
             else:
                 join_url = f"https://t.me/{channel}"
                 button_text = f"🔗 عضویت در {channel}"
