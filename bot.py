@@ -3686,7 +3686,7 @@ async def async_main() -> None:
                 ADMIN_WAITING_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
                 ADMIN_WAITING_USD_RATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_process_input)],
                 ADMIN_WAITING_SEAT_INFO: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_add_seat)],
-                ADMIN_WAITING_CSV: [MessageHandler(filters.Document.ALL, process_csv_upload)],
+                ADMIN_WAITING_CSV: [MessageHandler(filters.Document.ALL, process_csv_upload_direct)],
                 ADMIN_WAITING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_price_input)],
                 # Add handler for seat editing
                 ADMIN_WAITING_EDIT_SEAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, seat_edit_handler)],
