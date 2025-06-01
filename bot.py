@@ -3152,7 +3152,15 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             if ENHANCED_LOGGING:
                 log_exception(e, {"order_id": order_id, "callback_data": data})
             await query.answer("خطا در تولید کد", show_alert=True)
-            
+            # Also send as regular message
+            await context.bot.send_message(
+                chat_id=user.id,
+                text="❌ *خطا در تولید کد 2FA*\n\n"
+                     "متأسفانه در تولید کد خطایی رخ داده است. "
+                     "لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.",
+                parse_mode="Markdown"
+            )
+    
     # Handle seat operations
     elif data.startswith("seat:"):
         # Handle seat operations (delete, edit, info)
@@ -3242,6 +3250,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     
                     if not result:
                         await query.answer("خطا: سفارش یافت نشد", show_alert=True)
+                        # Also send as regular message
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text="❌ خطا: سفارش یافت نشد"
+                        )
                         return
                     
                     twofa_count, twofa_last, twofa_disabled = result
@@ -3250,6 +3263,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     # Check if 2FA is permanently disabled
                     if twofa_disabled:
                         await query.answer("شما کد رو دریافت کردید و در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
+                        # Also send as regular message
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text="⏰ *مهلت استفاده از کد 2FA به پایان رسیده*\n\n"
+                                 "شما قبلاً کد 2FA خود را دریافت کرده‌اید. اگر مشکلی دارید، "
+                                 "لطفاً با پشتیبانی تماس بگیرید.",
+                            parse_mode="Markdown"
+                        )
                         return
                     
                     # Check if we need to disable 2FA due to timeout
@@ -3258,6 +3279,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         cur.execute("UPDATE orders SET twofa_disabled = TRUE WHERE id = %s", (order_id,))
                         conn.commit()
                         await query.answer("مهلت دریافت کد به پایان رسیده است. در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
+                        # Also send as regular message
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text="⏰ *مهلت دریافت کد 2FA به پایان رسیده*\n\n"
+                                 "بیش از 2 دقیقه از اولین درخواست شما گذشته است. "
+                                 "اگر مشکلی دارید، لطفاً با پشتیبانی تماس بگیرید.",
+                            parse_mode="Markdown"
+                        )
                         return
                     
                     # Check retry limits
@@ -3266,6 +3295,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         cur.execute("UPDATE orders SET twofa_disabled = TRUE WHERE id = %s", (order_id,))
                         conn.commit()
                         await query.answer("شما کد رو دریافت کردید و در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
+                        # Also send as regular message
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text="⚡ *حداکثر تعداد درخواست کد 2FA*\n\n"
+                                 "شما 2 بار کد 2FA دریافت کرده‌اید و دیگر امکان دریافت کد جدید وجود ندارد. "
+                                 "اگر مشکلی دارید، لطفاً با پشتیبانی تماس بگیرید.",
+                            parse_mode="Markdown"
+                        )
                         return
                     
                     # Get seat ID and secret for this order
@@ -3273,6 +3310,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     result = cur.fetchone()
                     if not result or not result[0]:
                         await query.answer("خطا: اطلاعات صندلی یافت نشد", show_alert=True)
+                        # Also send as regular message
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text="❌ خطا: اطلاعات صندلی یافت نشد"
+                        )
                         return
                         
                     seat_id = result[0]
@@ -3282,6 +3324,11 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     result = cur.fetchone()
                     if not result:
                         await query.answer("خطا: اطلاعات رمز یافت نشد", show_alert=True)
+                        # Also send as regular message
+                        await context.bot.send_message(
+                            chat_id=user.id,
+                            text="❌ خطا: اطلاعات رمز یافت نشد"
+                        )
                         return
                     
                     secret_enc = result[0]
