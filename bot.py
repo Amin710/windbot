@@ -213,48 +213,36 @@ async def load_force_join_settings():
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                # Try to get force join enabled status
+                # Force update the database to use the correct channel
+                cur.execute("""
+                    INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'true')
+                    ON CONFLICT (key) DO UPDATE SET val = 'true'
+                """)
+                
+                cur.execute("""
+                    INSERT INTO settings (key, val) VALUES ('required_channels', '@AccYarVPN')
+                    ON CONFLICT (key) DO UPDATE SET val = '@AccYarVPN'
+                """)
+                
+                # Now load the settings
                 try:
                     cur.execute("SELECT val FROM settings WHERE key = 'force_join_enabled'")
                     result = cur.fetchone()
                     if result:
                         FORCE_JOIN_ENABLED = result[0].lower() == 'true'
-                    else:
-                        # If setting doesn't exist, create it with enabled=true
-                        cur.execute("INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'true')")
-                        FORCE_JOIN_ENABLED = True
                 except Exception as e:
-                    logger.warning(f"force_join_enabled setting not found, creating default: {e}")
-                    # Try to create the setting if it doesn't exist
-                    try:
-                        cur.execute("INSERT INTO settings (key, val) VALUES ('force_join_enabled', 'true') ON CONFLICT (key) DO NOTHING")
-                        FORCE_JOIN_ENABLED = True
-                    except:
-                        pass
+                    logger.warning(f"force_join_enabled setting not found, using default: {e}")
                 
-                # Try to get required channels list
                 try:
                     cur.execute("SELECT val FROM settings WHERE key = 'required_channels'")
                     result = cur.fetchone()
                     if result and result[0]:
                         # Parse comma-separated channel IDs/usernames
                         REQUIRED_CHANNELS = [ch.strip() for ch in result[0].split(',') if ch.strip()]
-                    else:
-                        # If no channels set, create default
-                        default_channels = "@AccYarVPN"  # AccYarVPN channel username
-                        cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', %s) ON CONFLICT (key) DO UPDATE SET val = EXCLUDED.val", (default_channels,))
-                        REQUIRED_CHANNELS = [default_channels]
                 except Exception as e:
-                    logger.warning(f"required_channels setting not found, creating default: {e}")
-                    # Try to create the setting if it doesn't exist
-                    try:
-                        default_channels = "@AccYarVPN"  # AccYarVPN channel username
-                        cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', %s) ON CONFLICT (key) DO NOTHING", (default_channels,))
-                        REQUIRED_CHANNELS = [default_channels]
-                    except:
-                        pass
+                    logger.warning(f"required_channels setting not found, using default: {e}")
                 
-                # Commit any new settings
+                # Commit changes
                 conn.commit()
                     
         logger.info(f"Force join settings loaded: enabled={FORCE_JOIN_ENABLED}, channels={REQUIRED_CHANNELS}")
