@@ -223,6 +223,16 @@ def get_code_2fa_button(order_id):
     return InlineKeyboardMarkup(keyboard)
 
 
+def get_code_2fa_retry_button(order_id):
+    """Create retry 2FA button for second code generation."""
+    keyboard = [
+        [
+            InlineKeyboardButton("📲 دریافت مجدد کد", callback_data=f"code:{order_id}")
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 async def create_or_get_user(user):
     """Create a user record if it doesn't exist, or return existing user."""
     try:
@@ -3131,20 +3141,33 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     
                     # Create appropriate message based on attempt count
                     if new_count == 1:
-                        code_message = f"📲 **کد 2FA شما:** `{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
+                        full_message = (
+                            f"📲 *کد 2FA شما:*\n\n"
+                            f"`{code}`\n\n"
+                            f"⏰ این کد {remaining_seconds} ثانیه اعتبار دارد\n\n"
+                            f"🔑 *دریافت کد مجدد:* (مهلت دریافت 2 دقیقه!)\n\n"
+                            f"⚠️ *توجه:* این آخرین باری است که می‌توانید کد دریافت کنید 👇"
+                        )
+                        keyboard = get_code_2fa_retry_button(order_id)
                     elif new_count == 2:
-                        code_message = f"📲 **کد 2FA شما:** `{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد (دفعهٔ دوم)"
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
+                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد (دفعهٔ دوم)."
+                        keyboard = None
                     else:
-                        code_message = f"📲 **کد 2FA شما:** `{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
+                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
+                        keyboard = None
                     
-                    # Answer callback query first
-                    await query.answer()
+                    # Show alert with code and TTL
+                    await query.answer(alert_message, show_alert=True)
                     
-                    # Send code as a separate message
+                    # Also send the code as a separate message for easier copying
                     await context.bot.send_message(
                         chat_id=user.id,
-                        text=code_message,
-                        parse_mode="Markdown"
+                        text=full_message,
+                        parse_mode="Markdown",
+                        reply_markup=keyboard
                     )
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
@@ -3368,7 +3391,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
                     elif new_count == 2:
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
-                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد (دفعهٔ دوم)\n\n⚠️ *توجه:* این آخرین باری است که می‌توانید کد دریافت کنید."
+                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد (دفعهٔ دوم)."
                     else:
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
                         full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
