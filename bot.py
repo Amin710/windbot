@@ -36,6 +36,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional, Union, Tuple, List, Any
 
+# Scheduler imports
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import pytz
+
 # Import handlers modules
 from handlers import referral
 from handlers import admin_cards
@@ -505,10 +510,10 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def backup_db(bot, status_message):
-    """Create a database backup using Python and send it to the admin channel."""
-    if not RECEIPT_CHANNEL_ID:
+    """Create a database backup using Python and send it to the sales log channel."""
+    if not LOG_SELL_CHID:
         await status_message.edit_text(
-            "❌ *خطا: RECEIPT_CHANNEL_ID تنظیم نشده است*",
+            "❌ *خطا: LOG_SELL_CHID تنظیم نشده است*",
             parse_mode="Markdown"
         )
         return
@@ -621,10 +626,10 @@ async def backup_db(bot, status_message):
             try:
                 with open(backup_path, "rb") as backup_file:
                     await bot.send_document(
-                        chat_id=RECEIPT_CHANNEL_ID,
+                        chat_id=LOG_SELL_CHID,
                         document=backup_file,
                         filename=backup_filename,
-                        caption=f"Database Backup - {timestamp}\nSize: {file_size_mb:.2f} MB"
+                        caption=f"📂 *بکاپ دیتابیس* - {timestamp}\n💾 حجم: {file_size_mb:.2f} MB"
                     )
                 
                 # Update status message
@@ -650,6 +655,138 @@ async def backup_db(bot, status_message):
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
         )
+
+
+async def automated_backup(application):
+    """Automated backup function that runs daily at 3 AM Iran time."""
+    try:
+        logger.info("Starting automated daily backup...")
+        
+        if not LOG_SELL_CHID:
+            logger.error("LOG_SELL_CHID not configured, skipping automated backup")
+            return
+        
+        # Create timestamp for backup
+        iran_tz = pytz.timezone('Asia/Tehran')
+        timestamp = datetime.now(iran_tz).strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"wind_reseller_auto_backup_{timestamp}.sql"
+        
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                backup_path = Path(temp_dir) / backup_filename
+                
+                logger.info("Creating automated backup file...")
+                
+                # Create backup using Python
+                with open(backup_path, "w", encoding="utf-8") as backup_file:
+                    # Write backup header
+                    backup_file.write(f"-- Wind Reseller Automated Backup\n")
+                    backup_file.write(f"-- Generated on: {timestamp} (Iran Time)\n")
+                    backup_file.write(f"-- PostgreSQL Database Backup\n\n")
+                    backup_file.write("BEGIN;\n\n")
+                    
+                    # Get database connection
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
+                            # Get all table names
+                            cur.execute("""
+                                SELECT tablename FROM pg_tables 
+                                WHERE schemaname = 'public' 
+                                ORDER BY tablename
+                            """)
+                            tables = [row[0] for row in cur.fetchall()]
+                            
+                            logger.info(f"Backing up {len(tables)} tables...")
+                            
+                            for table in tables:
+                                # Write table structure comment
+                                backup_file.write(f"-- Table: {table}\n")
+                                
+                                # Get table data
+                                cur.execute(f"SELECT * FROM {table}")
+                                rows = cur.fetchall()
+                                
+                                if rows:
+                                    # Get column names
+                                    column_names = [desc[0] for desc in cur.description]
+                                    
+                                    # Write INSERT statements
+                                    for row in rows:
+                                        values = []
+                                        for value in row:
+                                            if value is None:
+                                                values.append("NULL")
+                                            elif isinstance(value, str):
+                                                # Escape single quotes
+                                                escaped_value = value.replace("'", "''")
+                                                values.append(f"'{escaped_value}'")
+                                            elif isinstance(value, (int, float)):
+                                                values.append(str(value))
+                                            elif isinstance(value, bool):
+                                                values.append("TRUE" if value else "FALSE")
+                                            else:
+                                                # For other types, convert to string and escape
+                                                escaped_value = str(value).replace("'", "''")
+                                                values.append(f"'{escaped_value}'")
+                                        
+                                        backup_file.write(
+                                            f"INSERT INTO {table} ({', '.join(column_names)}) "
+                                            f"VALUES ({', '.join(values)});\n"
+                                        )
+                                    
+                                    backup_file.write(f"\n")
+                            
+                            # Write backup footer
+                            backup_file.write("COMMIT;\n")
+                            backup_file.write(f"\n-- Automated backup completed at {timestamp}\n")
+                    
+                    # Check if backup file exists and has content
+                    if not backup_path.exists() or backup_path.stat().st_size == 0:
+                        logger.error("Automated backup file creation failed")
+                        return
+                    
+                    # Send the backup file to the log channel
+                    file_size = backup_path.stat().st_size
+                    file_size_mb = file_size / (1024 * 1024)
+                    
+                    logger.info(f"Sending automated backup file ({file_size_mb:.2f} MB) to log channel...")
+                    
+                    with open(backup_path, "rb") as backup_file_handle:
+                        await application.bot.send_document(
+                            chat_id=LOG_SELL_CHID,
+                            document=backup_file_handle,
+                            filename=backup_filename,
+                            caption=(
+                                f"🕰 *بکاپ اتوماتیک روزانه*\n\n"
+                                f"📅 تاریخ: {datetime.now(iran_tz).strftime('%Y/%m/%d')}\n"
+                                f"🕐 ساعت: {datetime.now(iran_tz).strftime('%H:%M')} (وقت تهران)\n"
+                                f"💾 حجم: {file_size_mb:.2f} MB\n"
+                                f"📂 نام فایل: `{backup_filename}`"
+                            ),
+                            parse_mode="Markdown"
+                        )
+                    
+                    logger.info("Automated backup completed successfully")
+                    
+        except Exception as backup_error:
+            logger.error(f"Error in automated backup creation: {backup_error}")
+            # Send error notification to log channel
+            try:
+                iran_tz = pytz.timezone('Asia/Tehran')
+                await application.bot.send_message(
+                    chat_id=LOG_SELL_CHID,
+                    text=(
+                        f"⚠️ *خطا در بکاپ اتوماتیک*\n\n"
+                        f"📅 تاریخ: {datetime.now(iran_tz).strftime('%Y/%m/%d %H:%M')}\n"
+                        f"❌ خطا: `{str(backup_error)[:300]}`"
+                    ),
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass  # If we can't send error notification, just log it
+                
+    except Exception as e:
+        logger.error(f"Fatal error in automated backup: {e}")
 
 
 async def send_broadcast_messages(bot, message, user_ids, admin_chat_id):
@@ -1461,10 +1598,10 @@ async def approve_order(order_id):
 
 async def send_sale_report(bot, order_id, user_data, seat_data):
     """Send sale report to the sales log channel."""
-    if not LOG_SELL_CHID:
+        if not LOG_SELL_CHID:
         logger.warning("LOG_SELL_CHID not configured, skipping sale report")
-        return
-    
+            return
+        
     try:
         # Get user information
         tg_id = user_data.get("tg_id")
@@ -1581,8 +1718,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     query = update.callback_query
     
     try:
-        with db.get_conn() as conn:
-            with conn.cursor() as cur:
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
                 # Get USD rate with error handling
                 try:
                     usd_rate = int(db.get_setting('usd_rate', '70000'))  # Default 70,000 Toman per USD
@@ -1596,7 +1733,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 
                 try:
                     # Check if joined_at column exists in users table
-                    cur.execute("""
+                            cur.execute("""
                         SELECT column_name 
                         FROM information_schema.columns 
                         WHERE table_name = 'users' AND column_name = 'joined_at'
@@ -2226,7 +2363,7 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                             if result is None or cur.rowcount == 0:
                                 # Email already exists
                                 duplicate_count += 1
-                            else:
+                                            else:
                                 success_count += 1
                                 logger.info(f"Added seat: {email}")
                                 
@@ -2362,8 +2499,8 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             if os.path.exists(csv_file_path):
                 os.remove(csv_file_path)
-            return
-        
+                        return
+                    
         # Log the fieldnames for debugging
         logger.info(f"CSV fieldnames: {header_fields}")
         
@@ -3212,126 +3349,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     # For other BadRequest errors, just log and notify
                     logger.error(f"Error updating admin message on rejection: {e}")
                     await query.answer("خطا در بروزرسانی پیام", show_alert=True)
-    
-    # Handle 2FA code request
-    elif data.startswith("2fa:"):
-        # Extract seat ID
-        seat_id = int(data.split(":")[1])
-        
-        # Get the secret for the seat
-        try:
-            with db.get_conn() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT secret_enc FROM seats WHERE id = %s", (seat_id,))
-                    result = cur.fetchone()
-                    if not result:
-                        await query.edit_message_text("خطا: اطلاعات صندلی یافت نشد.")
-                        return
-                    
-                    secret_enc = result[0]
-                    
-                    # Decrypt the secret
-                    secret = decrypt(secret_enc)
-                    
-                    # Generate 2FA code using TOTP
-                    import pyotp
-                    totp = pyotp.TOTP(secret)
-                    code = totp.now()
-                    
-                    # Calculate remaining seconds until code expires
-                    remaining_seconds = 30 - (int(time.time()) % 30)
-                    
-                    # Create appropriate message based on attempt count
-                    if new_count == 1:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
-                    elif new_count == 2:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
-                    
-                    # Answer callback query first
-                    await query.answer()
-                    
-                    # Send 2FA code as a separate message
-                    await context.bot.send_message(
-                        chat_id=user.id,
-                        text=message_text,
-                        parse_mode="Markdown"
-                    )
-        except Exception as e:
-            logger.error(f"Error generating TOTP code: {e}")
-            await query.answer("خطا در تولید کد", show_alert=True)
-            
-    # Handle seat operations
-    elif data.startswith("seat:"):
-        # Handle seat operations (delete, edit, info)
-        parts = data.split(":")
-        if len(parts) < 3:
-            await query.answer("درخواست نامعتبر", show_alert=True)
-            return
-            
-        action = parts[1]
-        seat_id = int(parts[2])
-        
-        # Import account management handlers
-        from handlers.admin_accounts import handle_seat_delete, handle_seat_edit_prompt
-        
-        if action == "del":
-            # Handle seat deletion
-            await handle_seat_delete(update, context, seat_id)
-        elif action == "edit":
-            # Handle seat editing
-            await handle_seat_edit_prompt(update, context, seat_id)
-        elif action == "info":
-            # Show seat info (currently redirects to edit for simplicity)
-            await handle_seat_edit_prompt(update, context, seat_id)
-
-    # Admin: Card management
-    elif data == "admin:card" or data == "admin:cards":
-        # Check if user is admin
-        is_admin = await check_admin(user.id)
-        if not is_admin:
-            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
-            return
-
-        # Redirect to new card management system
-        await admin_cards.show_cards_list(update, context)
-        
-    # Card management callbacks
-    elif data == "card:add":
-        # Check if user is admin
-        is_admin = await check_admin(user.id)
-        if not is_admin:
-            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
-            return
-        
-        await admin_cards.add_card_prompt(update, context)
-        
-    elif data.startswith("card:del:"):
-        # Check if user is admin
-        is_admin = await check_admin(user.id)
-        if not is_admin:
-            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
-            return
-        
-        try:
-            card_id = int(data.split(":")[2])
-            await admin_cards.delete_card(update, context, card_id)
-        except (ValueError, IndexError) as e:
-            logger.error(f"Invalid card deletion ID format: {e}")
-            await query.answer("خطا در حذف کارت", show_alert=True)
-            
-    elif data.startswith("card:edit:"):
-        # Check if user is admin
-        is_admin = await check_admin(user.id)
-        if not is_admin:
-            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
-            return
-        
-        try:
-            card_id = int(data.split(":")[2])
-            await admin_cards.edit_card_prompt(update, context, card_id)
-        except (ValueError, IndexError) as e:
-            logger.error(f"Invalid card edit ID format: {e}")
-            await query.answer("خطا در ویرایش کارت", show_alert=True)
 
     # Handle quick TOTP code generation with limited retries
     elif data.startswith("code:"):
@@ -3475,8 +3492,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except Exception as e:
             logger.error(f"Error sending 2FA tutorial: {e}")
             await query.answer("خطا در ارسال آموزش", show_alert=True)
-    
-    # Handle 2FA code request
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3586,6 +3601,27 @@ def main() -> None:
 
     # Initialize database
     db.init_db()
+    
+    # Setup automated backup scheduler
+    try:
+        scheduler = AsyncIOScheduler()
+        
+        # Set up daily backup at 3:00 AM Iran time
+        iran_tz = pytz.timezone('Asia/Tehran')
+        scheduler.add_job(
+            automated_backup,
+            CronTrigger(hour=3, minute=0, timezone=iran_tz),
+            args=[application],
+            id='daily_backup',
+            name='Daily Database Backup',
+            replace_existing=True
+        )
+        
+        scheduler.start()
+        logger.info("Automated backup scheduler started - daily backup at 3:00 AM Iran time")
+        
+    except Exception as e:
+        logger.error(f"Failed to start backup scheduler: {e}")
     
     # Register handlers
     application.add_handler(CommandHandler("start", start))
