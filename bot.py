@@ -3936,11 +3936,34 @@ async def async_main() -> None:
 
         # Run the bot until the user presses Ctrl-C
         logger.info("Starting bot polling...")
-        async with application:
-            await application.start()
-            await application.updater.start_polling()
-            logger.info("Bot is now running. Press Ctrl+C to stop.")
-            await application.updater.idle()
+        
+        # Initialize the application
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        
+        logger.info("Bot is now running. Press Ctrl+C to stop.")
+        
+        # Keep the bot running until interrupted
+        import signal
+        import asyncio
+        
+        stop_event = asyncio.Event()
+        
+        def signal_handler(signum, frame):
+            logger.info("Received shutdown signal")
+            stop_event.set()
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        try:
+            await stop_event.wait()
+        finally:
+            logger.info("Shutting down bot...")
+            await application.updater.stop()
+            await application.stop()
+            await application.shutdown()
         
     except Exception as e:
         logger.error(f"Critical error in async_main: {e}")
