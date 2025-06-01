@@ -1246,7 +1246,7 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(
         f"با تشکر، سفارش شما ثبت شد و در انتظار تایید می‌باشد ✅\n\n"
         f"فرایند تایید ممکنه تا چند ساعت زمان ببره لطفا از پیام مکرر به پشتیبانی خودداری کنید\n\n"
-        f"💬 پشتیبانی: @AccountYarSup"
+        f"💬 پشتیبانی: @AccountYarSupport"
     )
     
     # Forward receipt to admin channel
@@ -1339,7 +1339,7 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parts.append('-')
         
         # Extract the parts
-        email, password, secret, slots = parts
+        username, password, secret, slots = parts
         
         # Fetch current row data
         with db.get_conn() as conn:
@@ -1360,10 +1360,10 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     context.user_data.pop('edit_return_page', None)
                     return
                 
-                current_email, current_pass_enc, current_secret_enc, current_max_slots = result
+                current_username, current_pass_enc, current_secret_enc, current_max_slots = result
                 
                 # Prepare new values
-                new_email = email if email != '-' else current_email
+                new_username = username if username != '-' else current_username
                 new_pass_enc = encrypt(password) if password != '-' else current_pass_enc
                 new_secret_enc = encrypt(secret) if secret != '-' else current_secret_enc
                 
@@ -1377,16 +1377,16 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     )
                     return
                 
-                # Validate email if it's changing
-                if email != '-' and '@' not in new_email:
+                # Validate username if it's changing
+                if username != '-' and len(new_username.strip()) < 3:
                     await message.reply_text(
-                        "❌ *خطا: فرمت ایمیل نامعتبر است*",
+                        "❌ *خطا: نام کاربری باید حداقل ۳ کاراکتر باشد*",
                         parse_mode="Markdown"
                     )
                     return
                 
                 # Check if any changes were made
-                if (new_email == current_email and 
+                if (new_username == current_username and 
                     new_pass_enc == current_pass_enc and 
                     new_secret_enc == current_secret_enc and 
                     new_slots == current_max_slots):
@@ -1401,14 +1401,14 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 # Update the seat
                 cur.execute(
                     "UPDATE seats SET email=%s, pass_enc=%s, secret_enc=%s, max_slots=%s WHERE id=%s",
-                    (new_email, new_pass_enc, new_secret_enc, new_slots, seat_id)
+                    (new_username, new_pass_enc, new_secret_enc, new_slots, seat_id)
                 )
                 conn.commit()
                 
                 # Confirm success
                 await message.reply_text(
                     f"✅ *ویرایش شد*\n\n"
-                    f"💬 ایمیل: `{new_email}`\n"
+                    f"👤 نام کاربری: `{new_username}`\n"
                     f"💺 صندلی‌ها: {new_slots}",
                     parse_mode="Markdown",
                     reply_markup=InlineKeyboardMarkup([
@@ -1643,7 +1643,7 @@ async def approve_order(order_id):
                             sell_report = (
                                 f"✅ گزارش فروش\n\n"
                                 f"اکانت ویندسکرایب یک ماهه برای کاربر @{username} ارسال شد\n\n"
-                                f"📧 ایمیل: {email}\n"
+                                f"👤 نام کاربری: {email}\n"
                                 f"🔑 رمز عبور: {password}\n"
                                 f"🔐 کد 2FA اکانت: {secret}\n\n"
                                 f"💺 ظرفیت کل صندلی های باقی مانده: {remaining_slots}"
@@ -1969,7 +1969,7 @@ async def handle_add_seat(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.edit_message_text(
         f"➕ *افزودن اکانت جدید*\n\n"
         f"لطفاً اطلاعات اکانت را در یک خط به‌صورت:\n"
-        f"`email password secret [slots]` ارسال کنید\n\n"
+        f"`username password secret [slots]` ارسال کنید\n\n"
         f"slots اختیاری است و پیش‌فرض 15 می‌باشد.",
         parse_mode="Markdown"
     )
@@ -1994,7 +1994,7 @@ async def handle_bulk_csv(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     await query.edit_message_text(
         f"📂 *افزودن گروهی اکانت از CSV*\n\n"
-        f"فایل CSV با ستون‌های email,password,secret,slots را ارسال کنید\n\n"
+        f"فایل CSV با ستون‌های username,password,secret,slots را ارسال کنید\n\n"
         f"*توجه:* ستون slots اختیاری است و پیش‌فرض 15 می‌باشد.",
         parse_mode="Markdown"
     )
@@ -2042,16 +2042,16 @@ async def handle_list_csv(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         csv_writer = csv.writer(csv_buffer)
         
         # Write header
-        csv_writer.writerow(['email', 'password', 'secret', 'free_slots'])
+        csv_writer.writerow(['username', 'password', 'secret', 'free_slots'])
         
         # Write data rows
         for seat in seats:
-            email = seat[0]
+            username = seat[0]  # Database still uses 'email' field, but content is username
             password = decrypt_secret(seat[1])  # Decrypt password
             secret = decrypt_secret(seat[2])    # Decrypt secret
             free_slots = seat[3]
             
-            csv_writer.writerow([email, password, secret, free_slots])
+            csv_writer.writerow([username, password, secret, free_slots])
         
         # Get the CSV content
         csv_content = csv_buffer.getvalue()
@@ -2297,13 +2297,13 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
         logger.info(f"CSV fieldnames: {header_fields}")
         
         # Verify required columns
-        required_fields = ['email', 'password', 'secret']
+        required_fields = ['username', 'password', 'secret']
         missing_fields = [field for field in required_fields if field not in header_fields]
         
         if missing_fields:
             await status_msg.edit_text(
                 f"❌ *خطا: ستون‌های {', '.join(missing_fields)} در فایل CSV یافت نشد*\n\n"
-                f"ستون‌های مورد نیاز: email, password, secret, slots (اختیاری)",
+                f"ستون‌های مورد نیاز: username, password, secret, slots (اختیاری)",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
@@ -2322,9 +2322,9 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                 total_rows = i
                 try:
                     # Extract data with detailed validation
-                    if 'email' not in row or not row['email'].strip():
+                    if 'username' not in row or not row['username'].strip():
                         error_count += 1
-                        errors.append(f"Row {i}: Missing email")
+                        errors.append(f"Row {i}: Missing username")
                         continue
                         
                     if 'password' not in row or not row['password'].strip():
@@ -2337,12 +2337,18 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                         errors.append(f"Row {i}: Missing secret")
                         continue
                     
-                    email = row['email'].strip()
+                    username = row['username'].strip()
                     password = row['password'].strip()
                     secret = row['secret'].strip()
                     
+                    # Validate username (should be at least 3 characters)
+                    if len(username.strip()) < 3:
+                        error_count += 1
+                        errors.append(f"Row {i}: Username too short")
+                        continue
+                    
                     # Validate email format
-                    if '@' not in email:
+                    if '@' not in username:
                         error_count += 1
                         errors.append(f"Row {i}: Invalid email format")
                         continue
@@ -2371,241 +2377,17 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                                    VALUES (%s, %s, %s, %s)
                                    ON CONFLICT (email) DO NOTHING
                                    RETURNING id""",
-                                (email, pass_enc, secret_enc, max_slots)
+                                (username, pass_enc, secret_enc, max_slots)
                             )
                             result = cur.fetchone()
                             conn.commit()
                             
                             if result is None or cur.rowcount == 0:
-                                # Email already exists
+                                # Username already exists
                                 duplicate_count += 1
                             else:
                                 success_count += 1
-                                logger.info(f"Added seat: {email}")
-                                
-                except Exception as row_error:
-                    error_count += 1
-                    error_str = str(row_error)[:100]
-                    errors.append(f"Row {i}: {error_str}")
-                    logger.error(f"Error processing row {i}: {error_str}")
-                
-                # Update status every 5 rows
-                if i % 5 == 0:
-                    try:
-                        await status_msg.edit_text(
-                            f"⏳ *در حال پردازش ردیف‌های CSV...*\n\n"
-                            f"پردازش شده: {i}\n"
-                            f"موفق: {success_count}\n"
-                            f"تکراری: {duplicate_count}\n"
-                            f"خطا: {error_count}",
-                            parse_mode="Markdown"
-                        )
-                    except Exception as status_error:
-                        logger.error(f"Error updating status: {status_error}")
-        
-        # Show final results
-        result_message = f"✅ *افزودن گروهی اکانت‌ها انجام شد*\n\n"
-        result_message += f"🔢 کل ردیف‌ها: {total_rows}\n"
-        result_message += f"✅ موفق: {success_count}\n"
-        result_message += f"🔄 تکراری: {duplicate_count}\n"
-        result_message += f"❌ خطا: {error_count}\n"
-        
-        if errors:
-            result_message += "\n📋 *خطاها:*\n"
-            # Show first 5 errors max
-            for error in errors[:5]:
-                result_message += f"- {error}\n"
-            
-            if len(errors) > 5:
-                result_message += f"و {len(errors) - 5} خطای دیگر..."
-        
-        await status_msg.edit_text(
-            result_message,
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in CSV processing: {e}")
-        await status_msg.edit_text(
-            f"❌ *خطای سیستمی در پردازش فایل*\n\n`{str(e)[:200]}`",
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-    
-    finally:
-        # Clean up temp file
-        try:
-            if os.path.exists(csv_file_path):
-                os.remove(csv_file_path)
-        except Exception as e:
-            logger.error(f"Error cleaning up temp file: {e}")
-
-
-async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Process the uploaded CSV file for bulk seat import."""
-    # Check if we're expecting a CSV file
-    if not context.user_data.get('awaiting_csv', False):
-        return -1
-    
-    # Clear the flag immediately to prevent issues in case of errors
-    context.user_data.pop('awaiting_csv', None)
-    
-    # Get the document
-    message = update.message
-    document = message.document
-    
-    # Check if it's a CSV file
-    if not document.file_name.lower().endswith('.csv'):
-        await message.reply_text(
-            "❌ *خطا: فایل باید CSV باشد*",
-            parse_mode="Markdown",
-            reply_markup=get_admin_keyboard()
-        )
-        return -1
-    
-    # Status message
-    status_msg = await message.reply_text(
-        "⏳ *در حال دانلود و پردازش فایل CSV...*",
-        parse_mode="Markdown"
-    )
-    
-    csv_file_path = f"temp_{message.message_id}.csv"
-    
-    try:
-        # Download the file
-        file = await context.bot.get_file(document.file_id)
-        await file.download_to_drive(csv_file_path)
-        
-        await status_msg.edit_text(
-            "✅ *فایل با موفقیت دانلود شد، در حال پردازش...*",
-            parse_mode="Markdown"
-        )
-        
-        # Process CSV
-        success_count = 0
-        duplicate_count = 0
-        error_count = 0
-        errors = []
-        
-        # Try opening with different encodings to find the correct one
-        encodings = ['utf-8', 'latin-1', 'cp1256']
-        working_encoding = None
-        header_fields = None
-        
-        # First find the correct encoding and read headers
-        for encoding in encodings:
-            try:
-                with open(csv_file_path, 'r', newline='', encoding=encoding) as csvfile:
-                    test_reader = csv.DictReader(csvfile)
-                    # Test reading headers to verify encoding
-                    header_fields = test_reader.fieldnames
-                    if header_fields:  # Successfully parsed headers
-                        working_encoding = encoding
-                        break
-            except Exception as enc_error:
-                logger.error(f"Error with encoding {encoding}: {enc_error}")
-                continue
-        
-        if not working_encoding or not header_fields:
-            await status_msg.edit_text(
-                "❌ *خطا در خواندن فایل CSV: فرمت فایل نامعتبر است*",
-                parse_mode="Markdown",
-                reply_markup=get_admin_keyboard()
-            )
-            if os.path.exists(csv_file_path):
-                os.remove(csv_file_path)
-            return
-        
-        # Log the fieldnames for debugging
-        logger.info(f"CSV fieldnames: {header_fields}")
-        
-        # Verify required columns
-        required_fields = ['email', 'password', 'secret']
-        missing_fields = [field for field in required_fields if field not in header_fields]
-        
-        if missing_fields:
-            await status_msg.edit_text(
-                f"❌ *خطا: ستون‌های {', '.join(missing_fields)} در فایل CSV یافت نشد*\n\n"
-                f"ستون‌های مورد نیاز: email, password, secret, slots (اختیاری)",
-                parse_mode="Markdown",
-                reply_markup=get_admin_keyboard()
-            )
-            if os.path.exists(csv_file_path):
-                os.remove(csv_file_path)
-            return
-        
-        # Now process rows with the correct encoding
-        total_rows = 0
-        
-        # Read and process the file with the correct encoding
-        with open(csv_file_path, 'r', newline='', encoding=working_encoding) as csvfile:
-            reader = csv.DictReader(csvfile)
-            
-            for i, row in enumerate(reader, 1):
-                total_rows = i
-                try:
-                    # Extract data with detailed validation
-                    if 'email' not in row or not row['email'].strip():
-                        error_count += 1
-                        errors.append(f"Row {i}: Missing email")
-                        continue
-                        
-                    if 'password' not in row or not row['password'].strip():
-                        error_count += 1
-                        errors.append(f"Row {i}: Missing password")
-                        continue
-                        
-                    if 'secret' not in row or not row['secret'].strip():
-                        error_count += 1
-                        errors.append(f"Row {i}: Missing secret")
-                        continue
-                    
-                    email = row['email'].strip()
-                    password = row['password'].strip()
-                    secret = row['secret'].strip()
-                    
-                    # Validate email format
-                    if '@' not in email:
-                        error_count += 1
-                        errors.append(f"Row {i}: Invalid email format")
-                        continue
-                    
-                    # Get slots (optional)
-                    max_slots = 15  # Default value
-                    if 'slots' in row and row['slots'] and row['slots'].strip():
-                        try:
-                            max_slots = int(row['slots'].strip())
-                            if max_slots <= 0:
-                                max_slots = 15
-                        except ValueError:
-                            # Use default if conversion fails
-                            errors.append(f"Row {i}: Invalid slots value, using default")
-                            max_slots = 15
-                    
-                    # Encrypt credentials
-                    pass_enc = encrypt(password)
-                    secret_enc = encrypt(secret)
-                    
-                    # Insert into database
-                    with db.get_conn() as conn:
-                        with conn.cursor() as cur:
-                            cur.execute(
-                                """INSERT INTO seats (email, pass_enc, secret_enc, max_slots)
-                                   VALUES (%s, %s, %s, %s)
-                                   ON CONFLICT (email) DO NOTHING
-                                   RETURNING id""",
-                                (email, pass_enc, secret_enc, max_slots)
-                            )
-                            result = cur.fetchone()
-                            conn.commit()
-                            
-                            if result is None or cur.rowcount == 0:
-                                # Email already exists
-                                duplicate_count += 1
-                            else:
-                                success_count += 1
-                                logger.info(f"Added seat: {email}")
+                                logger.info(f"Added seat: {username}")
                                 
                 except Exception as row_error:
                     error_count += 1
@@ -2681,20 +2463,20 @@ async def process_add_seat_direct(update: Update, context: ContextTypes.DEFAULT_
         return
     
     try:
-        # Parse the input - split into maximum 4 parts (email, password, secret, slots)
+        # Parse the input - split into maximum 4 parts (username, password, secret, slots)
         # This allows password and secret to contain spaces
         parts = message_text.split(maxsplit=3)
         if len(parts) < 3:
             await message.reply_text(
                 "❌ *خطا: فرمت نامعتبر*\n\n"
-                "لطفاً اطلاعات را به صورت `email password secret [slots]` وارد کنید.",
+                "لطفاً اطلاعات را به صورت `username password secret [slots]` وارد کنید.",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
             return
         
         # Extract the parts
-        email = parts[0].strip()
+        username = parts[0].strip()
         password = parts[1].strip()
         
         # For the last part, check if it contains both secret and slots
@@ -2710,10 +2492,10 @@ async def process_add_seat_direct(update: Update, context: ContextTypes.DEFAULT_
             secret = parts[2].strip()
             max_slots = 15
         
-        # Validate email
-        if '@' not in email:
+        # Validate username (should be at least 3 characters)
+        if len(username.strip()) < 3:
             await message.reply_text(
-                "❌ *خطا: ایمیل نامعتبر*",
+                "❌ *خطا: نام کاربری باید حداقل ۳ کاراکتر باشد*",
                 parse_mode="Markdown",
                 reply_markup=get_admin_keyboard()
             )
@@ -2740,7 +2522,7 @@ async def process_add_seat_direct(update: Update, context: ContextTypes.DEFAULT_
                        VALUES (%s, %s, %s, %s)
                        ON CONFLICT (email) DO NOTHING
                        RETURNING id""",
-                    (email, pass_enc, secret_enc, max_slots)
+                    (username, pass_enc, secret_enc, max_slots)
                 )
                 
                 result = cur.fetchone()
@@ -2748,10 +2530,10 @@ async def process_add_seat_direct(update: Update, context: ContextTypes.DEFAULT_
                 
                 # Check if the insert was successful
                 if result is None or cur.rowcount == 0:
-                    # Email already exists
+                    # Username already exists
                     await message.reply_text(
-                        f"⚠️ *این ایمیل قبلاً ثبت شده است*\n\n"
-                        f"💬 ایمیل: `{email}`",
+                        f"⚠️ *این نام کاربری قبلاً ثبت شده است*\n\n"
+                        f"👤 نام کاربری: `{username}`",
                         parse_mode="Markdown",
                         reply_markup=get_admin_keyboard()
                     )
@@ -2762,14 +2544,14 @@ async def process_add_seat_direct(update: Update, context: ContextTypes.DEFAULT_
         # Confirm success
         await message.reply_text(
             f"✅ *صندلی اضافه شد*\n\n"
-            f"💬 ایمیل: `{email}`\n"
+            f"👤 نام کاربری: `{username}`\n"
             f"💺 صندلی‌ها: {max_slots}\n"
             f"🆔 شناسه: #{seat_id}",
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
         )
         
-        logger.info(f"Admin {update.effective_user.id} added new seat: {email} (ID: {seat_id})")
+        logger.info(f"Admin {update.effective_user.id} added new seat: {username} (ID: {seat_id})")
         
     except Exception as e:
         logger.error(f"Error adding seat: {e}")
@@ -2974,8 +2756,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     # Show edit prompt
                     await query.edit_message_text(
                         f"✏️ *ویرایش صندلی شماره #{seat_id}*\n\n"
-                        f"ایمیل پسورد سکرت اسلات (برای نگه‌داشتن مقدار فعلی از - استفاده کن)\n\n"
-                        f"مثال:\n`new@email.com - newsecret 25`\n\n"
+                        f"نام کاربری پسورد سکرت اسلات (برای نگه‌داشتن مقدار فعلی از - استفاده کن)\n\n"
+                        f"مثال:\n`newusername - newsecret 25`\n\n"
                         f"یا برای حفظ همه مقادیر:\n`- - - -`",
                         parse_mode="Markdown",
                         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -3170,13 +2952,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             order_id = order_data["order_id"]
             
             # Decrypt credentials
-            email = seat["email"]
+            username = seat["email"]  # Database still uses 'email' field, but content is username
             password = decrypt(seat["pass_enc"])
             
             # Send message to user
             user_message = (
                 f"🎉 *سفارش شماره #{order_id} تایید شد*\n\n"
-                f"📧 ایمیل: `{email}`\n"
+                f"👤 نام کاربری: `{username}`\n"
                 f"🔑 رمز عبور: `{password}`\n\n"
                 f"✅ برای آموزش ورود به اکانت و دریافت کد 2FA، روی دکمه زیر کلیک کنید.\n\n"
                 f"❌ لطفا اطلاعات حساب خود را با احتیاط نگهداری کنید."
@@ -3214,7 +2996,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     sales_report = (
                         f"✅ گزارش فروش\n\n"
                         f"اکانت ویندسکرایب یک ماهه برای کاربر {user_mention} ارسال شد\n\n"
-                        f"📧 ایمیل: {email}\n"
+                        f"👤 نام کاربری: {username}\n"
                         f"🔑 رمز عبور: {password}\n"
                         f"🔐 کد 2FA اکانت: {totp_secret}\n\n"
                         f"💺 ظرفیت کل صندلی های باقی مانده: {remaining_capacity}"
@@ -3722,7 +3504,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"🔧 *آموزش ورود:*\n"
                 f"1️⃣ برنامه ویندسکرایب را نصب و باز کنید\n"
                 f"2️⃣ روی دکمه *Login* کلیک کنید\n"
-                f"3️⃣ ایمیل و پسورد خریداری شده را وارد کنید\n"
+                f"3️⃣ نام کاربری و پسورد خریداری شده را وارد کنید\n"
                 f"4️⃣ پیام *Two-Factor Authentication* ظاهر می‌شود\n"
                 f"5️⃣ روی دکمه زیر برای دریافت کد 2FA بزنید\n"
                 f"6️⃣ کد دریافتی را در برنامه وارد کنید\n\n"

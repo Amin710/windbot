@@ -66,9 +66,9 @@ async def handle_accounts_list(update: Update, context: ContextTypes.DEFAULT_TYP
                 keyboard = []
                 
                 # Add seat items with actions
-                for seat_id, email, max_slots, sold in seats:
+                for seat_id, username, max_slots, sold in seats:
                     free_slots = max_slots - sold
-                    seat_text = f"{email} | {free_slots}/{max_slots}"
+                    seat_text = f"{username} | {free_slots}/{max_slots}"
                     
                     keyboard.append([
                         InlineKeyboardButton(seat_text, callback_data=f"seat:info:{seat_id}")
@@ -109,7 +109,7 @@ async def handle_accounts_list(update: Update, context: ContextTypes.DEFAULT_TYP
                     message += "هیچ اکانتی یافت نشد."
                 else:
                     message += "لیست اکانت‌های فعال:\n"
-                    message += "ایمیل | صندلی‌های خالی/کل"
+                    message += "نام کاربری | صندلی‌های خالی/کل"
                 
                 # Send or edit message
                 await query.edit_message_text(
@@ -213,7 +213,7 @@ async def handle_seat_edit_prompt(update: Update, context: ContextTypes.DEFAULT_
                     await query.answer("اکانت مورد نظر یافت نشد.", show_alert=True)
                     return
                 
-                seat_id, email, pass_enc, secret_enc, max_slots, sold = result
+                seat_id, username, pass_enc, secret_enc, max_slots, sold = result  # content is username but column is email
                 
                 # Set editing mode in user_data
                 context.user_data['editing_seat'] = seat_id
@@ -239,12 +239,12 @@ async def handle_seat_edit_prompt(update: Update, context: ContextTypes.DEFAULT_
                 await query.edit_message_text(
                     f"✏️ *ویرایش اکانت #{seat_id}*\n\n"
                     f"اطلاعات فعلی:\n"
-                    f"📧 ایمیل: `{email}`\n"
+                    f"👤 نام کاربری: `{username}`\n"
                     f"🔢 صندلی‌ها: {sold}/{max_slots}\n\n"
                     f"برای ویرایش، اطلاعات جدید را به صورت زیر وارد کنید:\n"
-                    f"`email password secret slots`\n\n"
+                    f"`username password secret slots`\n\n"
                     f"اگر نمی‌خواهید فیلدی را تغییر دهید، به جای آن `-` وارد کنید.\n"
-                    f"مثال: `new@email.com - newsecret -`",
+                    f"مثال: `newusername - newsecret -`",
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode="Markdown"
                 )
@@ -282,7 +282,7 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return_page = context.user_data.get('edit_return_page', 1)
     context.user_data.pop('edit_return_page', None)
     
-    # Parse the input (email, password, secret, slots)
+    # Parse the input (username, password, secret, slots)
     parts = message.text.strip().split(maxsplit=3)
     
     # Make sure we have at least one part
@@ -294,7 +294,7 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     while len(parts) < 4:
         parts.append('-')
     
-    email, password, secret, slots = parts
+    username, password, secret, slots = parts
     
     # Process the edit
     try:
@@ -311,16 +311,16 @@ async def process_seat_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     await message.reply_text("اکانت مورد نظر یافت نشد.")
                     return
                 
-                current_email, current_pass_enc, current_secret_enc, current_max_slots = result
+                current_username, current_pass_enc, current_secret_enc, current_max_slots = result  # content is username but column is email
                 
                 # Prepare update values
                 update_values = []
                 update_fields = []
                 
-                # Check if email should be updated
-                if email != '-':
-                    update_fields.append("email = %s")
-                    update_values.append(email)
+                # Check if username should be updated
+                if username != '-':
+                    update_fields.append("email = %s")  # column is email but content is username
+                    update_values.append(username)
                 
                 # Check if password should be updated
                 if password != '-':
