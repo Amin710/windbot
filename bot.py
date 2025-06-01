@@ -3606,11 +3606,13 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as notify_error:
         logger.error(f"Failed to notify admin about error: {notify_error}")
         
-    # If this was from a user, inform them about the error
+    # If this was from a user, inform them about the error (only private chats)
     try:
-        if hasattr(update, "effective_chat") and update.effective_chat:
+        if (hasattr(update, "effective_chat") and update.effective_chat and 
+            hasattr(update, "effective_user") and update.effective_user and
+            update.effective_chat.type == "private"):
             await context.bot.send_message(
-                chat_id=update.effective_chat.id,
+                chat_id=update.effective_user.id,  # Use user ID instead of chat ID
                 text="❌ خطایی در سیستم رخ داده است. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n💬 پشتیبانی: @AccountYarSup"
             )
     except Exception as inform_error:
