@@ -1072,11 +1072,50 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     # Forward receipt to admin channel
     if RECEIPT_CHANNEL_ID:
         try:
+            # Get order details and card info
+            with db.get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Get order amount and transaction reference
+                    cur.execute(
+                        "SELECT amount, transaction_ref FROM orders WHERE id = %s",
+                        (pending_order_id,)
+                    )
+                    order_result = cur.fetchone()
+                    amount = order_result[0] if order_result else 0
+                    transaction_ref = order_result[1] if order_result and order_result[1] else "نامشخص"
+                    
+                    # Get card info (first active card if no specific one is set)
+                    cur.execute(
+                        "SELECT card_number, card_holder_name FROM cards WHERE is_active = true LIMIT 1"
+                    )
+                    card_result = cur.fetchone()
+                    if card_result:
+                        card_number = card_result[0]
+                        card_holder_name = card_result[1]
+                    else:
+                        # Fallback to environment variable
+                        card_number = CARD_NUMBER
+                        card_holder_name = "نامشخص"
+            
+            # Format user display
+            user_display = f"@{user.username}" if user.username else f"کاربر #{user.id}"
+            
+            # Create detailed caption
+            caption = (
+                f"🧾 رسید جدید پرداخت کارت به کارت:\n\n"
+                f"👤 کاربر: {user_display}\n"
+                f"🔢 شماره تراکنش: {transaction_ref}\n"
+                f"💰 مبلغ: {amount:,} تومان\n\n"
+                f"💳 کارت مقصد:\n"
+                f"🔢 {card_number}\n"
+                f"👤 {card_holder_name}"
+            )
+            
             # Forward with order info in caption
             forwarded_msg = await context.bot.send_photo(
                 chat_id=RECEIPT_CHANNEL_ID,
                 photo=file_id,
-                caption=f"Order #{pending_order_id}\nUser: {user.first_name} (@{user.username or 'N/A'})\nTG ID: {user.id}",
+                caption=caption,
                 reply_markup=get_admin_approval_keyboard(pending_order_id)
             )
             
