@@ -331,7 +331,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Send welcome message with main menu
     await update.message.reply_text(
-        f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
+        f"👤  به ربات \"اکانت یار\" : فروش اکانت قانونی فیلترشکن خوش آمدید 👋\n\n"
+        f"✅ سرویس های فعال درحال حاضر:\n"
+        f"- اکانت قانونی فیلترشکن پرسرعت ویندسکرایب 🔐\n\n"
         f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
         reply_markup=get_main_menu_keyboard(),
         parse_mode="Markdown"
@@ -2943,6 +2945,41 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
             except Exception as e:
                 logger.error(f"Error sending credentials to user: {e}")
+            
+            # Send sales report to LOG_SELL_CHID channel if configured
+            if LOG_SELL_CHID:
+                try:
+                    # Get user details for the report
+                    with db.get_conn() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT username, first_name FROM users WHERE tg_id = %s", (tg_id,))
+                            user_details = cur.fetchone()
+                            
+                            # Get total remaining capacity across all seats
+                            cur.execute("SELECT SUM(max_slots - sold) FROM seats WHERE status = 'active'")
+                            remaining_capacity = cur.fetchone()[0] or 0
+                            
+                    username = user_details[0] if user_details and user_details[0] else user_details[1] if user_details else "کاربر"
+                    user_mention = f"@{username}" if username and not username.startswith('کاربر') else username
+                    
+                    # Decrypt TOTP secret for the report
+                    totp_secret = decrypt_secret(seat["secret_enc"])
+                    
+                    sales_report = (
+                        f"✅ گزارش فروش\n\n"
+                        f"اکانت ویندسکرایب یک ماهه برای کاربر {user_mention} ارسال شد\n\n"
+                        f"📧 ایمیل: {email}\n"
+                        f"🔑 رمز عبور: {password}\n"
+                        f"🔐 کد 2FA اکانت: {totp_secret}\n\n"
+                        f"💺 ظرفیت کل صندلی های باقی مانده: {remaining_capacity}"
+                    )
+                    
+                    await context.bot.send_message(
+                        chat_id=LOG_SELL_CHID,
+                        text=sales_report
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending sales report: {e}")
             
             # Update receipt message caption
             try:
