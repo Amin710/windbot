@@ -208,7 +208,7 @@ async def load_force_join_settings():
     
     # Set defaults first
     FORCE_JOIN_ENABLED = True  # Enable by default
-    REQUIRED_CHANNELS = ["-1002005670103"]  # Default channel - AccYarVPN channel
+    REQUIRED_CHANNELS = ["@AccYarVPN"]  # Default channel - AccYarVPN channel
     
     try:
         with db.get_conn() as conn:
@@ -241,14 +241,14 @@ async def load_force_join_settings():
                         REQUIRED_CHANNELS = [ch.strip() for ch in result[0].split(',') if ch.strip()]
                     else:
                         # If no channels set, create default
-                        default_channels = "-1002005670103"  # AccYarVPN channel ID
+                        default_channels = "@AccYarVPN"  # AccYarVPN channel username
                         cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', %s) ON CONFLICT (key) DO UPDATE SET val = EXCLUDED.val", (default_channels,))
                         REQUIRED_CHANNELS = [default_channels]
                 except Exception as e:
                     logger.warning(f"required_channels setting not found, creating default: {e}")
                     # Try to create the setting if it doesn't exist
                     try:
-                        default_channels = "-1002005670103"  # AccYarVPN channel ID
+                        default_channels = "@AccYarVPN"  # AccYarVPN channel username
                         cur.execute("INSERT INTO settings (key, val) VALUES ('required_channels', %s) ON CONFLICT (key) DO NOTHING", (default_channels,))
                         REQUIRED_CHANNELS = [default_channels]
                     except:
@@ -263,7 +263,7 @@ async def load_force_join_settings():
         logger.error(f"Error loading force join settings: {e}")
         # Keep defaults
         FORCE_JOIN_ENABLED = True
-        REQUIRED_CHANNELS = ["-1002005670103"]  # AccYarVPN channel ID
+        REQUIRED_CHANNELS = ["@AccYarVPN"]  # AccYarVPN channel username
 
 async def check_channel_membership(user_id: int, bot) -> tuple[bool, list]:
     """
@@ -291,40 +291,21 @@ async def get_channel_join_keyboard(missing_channels: list):
     """Create inline keyboard with channel join buttons."""
     keyboard = []
     
-    for channel in missing_channels:
-        # Try to get channel info to create proper join link
-        try:
-            if channel.startswith('@'):
-                join_url = f"https://t.me/{channel[1:]}"
-                button_text = f"🔗 عضویت در {channel}"
-            elif channel.startswith('-100'):
-                # Private channel with numeric ID
-                join_url = f"https://t.me/c/{channel[4:]}"
-                # Special case for our AccYarVPN channel
-                if channel == "-1002005670103":
-                    button_text = f"🔗 عضویت در @AccYarVPN"
-                else:
-                    button_text = f"🔗 عضویت در کانال"
-            else:
-                join_url = f"https://t.me/{channel}"
-                button_text = f"🔗 عضویت در {channel}"
-                
-            keyboard.append([InlineKeyboardButton(button_text, url=join_url)])
-        except:
-            # Fallback for problematic channel formats
-            keyboard.append([InlineKeyboardButton(f"🔗 عضویت در کانال", url=f"https://t.me/{channel}")])
+    # Add AccYarVPN channel button
+    keyboard.append([InlineKeyboardButton("🛍 @AccYarVPN", url="https://t.me/AccYarVPN")])
     
     # Add check membership button
-    keyboard.append([InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_membership")])
+    keyboard.append([InlineKeyboardButton("✅ تأیید عضویت", callback_data="check_membership")])
     
     return InlineKeyboardMarkup(keyboard)
 
 async def send_join_channels_message(update: Update, context: ContextTypes.DEFAULT_TYPE, missing_channels: list):
     """Send message asking user to join required channels."""
     message_text = (
-        "🔒 *برای استفاده از ربات، ابتدا باید در کانال‌های زیر عضو شوید:*\n\n"
-        "لطفاً در تمام کانال‌های زیر عضو شده و سپس روی دکمه \"✅ بررسی عضویت\" کلیک کنید.\n\n"
-        "⚠️ *توجه:* تا زمانی که عضو نشوید، امکان استفاده از ربات وجود ندارد."
+        "🔸 کاربر محترم اکانت یار ، جهت استفاده بهتر از ربات و اطلاع از آخرین اخبار و اطلاعیه ها لطفا ابتدا عضو کانال زیر بشید 👇\n\n"
+        "🛍 @AccYarVPN\n"
+        "🛍 @AccYarVPN\n\n"
+        "پس از عضویت روی دکمه «تأیید عضویت» بزنید تا ربات براتون فعال بشه"
     )
     
     keyboard = await get_channel_join_keyboard(missing_channels)
@@ -2928,7 +2909,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 parse_mode="Markdown"
             )
         else:
-            # User is still not a member, show join message again
+            # User is still not a member, show error message
+            await query.answer("❌ شما هنوز تو کانال مورد نظر عضو نشدید", show_alert=True)
+            # Show join message again
             await send_join_channels_message(update, context, missing_channels)
         
     # Seat management callbacks
