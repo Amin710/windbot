@@ -2347,11 +2347,7 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                         errors.append(f"Row {i}: Username too short")
                         continue
                     
-                    # Validate email format
-                    if '@' not in username:
-                        error_count += 1
-                        errors.append(f"Row {i}: Invalid email format")
-                        continue
+                    # Username validation passed - no email format required
                     
                     # Get slots (optional)
                     max_slots = 15  # Default value
