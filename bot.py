@@ -1085,12 +1085,12 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
                     
                     # Get card info (first active card if no specific one is set)
                     cur.execute(
-                        "SELECT card_number, card_holder_name FROM cards WHERE is_active = true LIMIT 1"
+                        "SELECT card_number, title FROM cards WHERE active = true LIMIT 1"
                     )
                     card_result = cur.fetchone()
                     if card_result:
                         card_number = card_result[0]
-                        card_holder_name = card_result[1]
+                        card_holder_name = card_result[1]  # title field used as holder name
                     else:
                         # Fallback to environment variable
                         card_number = CARD_NUMBER if CARD_NUMBER else "نامشخص"
