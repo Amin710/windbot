@@ -105,12 +105,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Environment variables
+load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_URI = os.getenv("DB_URI")
 FERNET_KEY = os.getenv("FERNET_KEY")
 RECEIPT_CHANNEL_ID = os.getenv("RECEIPT_CHANNEL_ID")
 LOG_SELL_CHID = os.getenv("LOG_SELL_CHID")
 CARD_NUMBER = os.getenv("CARD_NUMBER", "")
+CH_LOCK_ID = os.getenv("CH_LOCK_ID")  # Channel membership lock
 
 # Initialize Fernet for encryption/decryption
 if not FERNET_KEY:
@@ -161,6 +163,49 @@ def decrypt_secret(token) -> str:
 def decrypt(token: bytes) -> str:
     """Decrypt bytes using Fernet symmetric encryption (legacy version)."""
     return decrypt_secret(token)
+
+
+# Channel membership lock functions
+async def is_subscribed(bot, user_id) -> bool:
+    """Check if user is subscribed to the channel."""
+    if not CH_LOCK_ID:
+        return True  # If no channel lock is set, allow access
+    
+    try:
+        m = await bot.get_chat_member(CH_LOCK_ID, user_id)
+        return m.status in ("member", "administrator", "creator")
+    except Exception:
+        return False  # treat errors as not subscribed
+
+
+async def send_lock_message(update, context):
+    """Send channel subscription lock message."""
+    text = (
+        "🔸 کاربر محترم اکانت یار، جهت استفاده از ربات ابتدا عضو کانال زیر شوید 👇\n\n"
+        "🛍 @AccYarVPN\n"
+        "🛍 @AccYarVPN\n\n"
+        "سپس روی دکمه «✅ بررسی عضویت» بزنید."
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛍 عضویت در کانال", url="https://t.me/AccYarVPN")],
+        [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_sub")]
+    ])
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(text, reply_markup=kb)
+    else:
+        await update.message.reply_text(text, reply_markup=kb)
+
+
+def channel_required(func):
+    """Decorator to require channel membership before accessing a function."""
+    async def wrapper(update, context, *args, **kwargs):
+        uid = update.effective_user.id
+        if await is_subscribed(context.bot, uid):
+            return await func(update, context, *args, **kwargs)
+        else:
+            await send_lock_message(update, context)
+    return wrapper
 
 
 def get_main_menu_keyboard():
@@ -317,6 +362,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Create user record if it doesn't exist
     await create_or_get_user(user)
+    
+    # Check subscription status and show appropriate message
+    if not await is_subscribed(context.bot, user.id):
+        await send_lock_message(update, context)
+        return
     
     # Send welcome message with main menu
     await update.message.reply_text(
@@ -700,74 +750,73 @@ async def manage_services(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.effective_user
     
     try:
+        # Check for approved orders and get seat information
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                # Get user ID
-                cur.execute("SELECT id FROM users WHERE tg_id = %s", (user.id,))
-                result = cur.fetchone()
-                if not result:
-                    # User not found in database
-                    user_id = await create_or_get_user(user)
-                else:
-                    user_id = result[0]
+                # Get approved orders with seat details
+                cur.execute("""
+                    SELECT o.id, o.created_at, s.email, s.id as seat_id
+                    FROM orders o
+                    LEFT JOIN seats s ON o.seat_id = s.id
+                    WHERE o.user_id = (SELECT id FROM users WHERE tg_id = %s)
+                    AND o.status = 'approved'
+                    ORDER BY o.created_at DESC
+                """, (user.id,))
                 
-                # Get user's approved orders with seat information
-                cur.execute(
-                    """SELECT o.id, s.email, s.id as seat_id 
-                       FROM orders o 
-                       JOIN seats s ON o.seat_id = s.id 
-                       WHERE o.user_id = %s AND o.status = 'approved' 
-                       ORDER BY o.approved_at DESC""",
-                    (user_id,)
-                )
                 orders = cur.fetchall()
                 
-                # Create message and keyboard
                 if not orders:
-                    message = (
-                        f"🔐 *مدیریت سرویس*\n\n"
-                        f"❌ شما هیچ سرویس فعالی ندارید.\n\n"
-                        f"👉 برای خرید سرویس از منوی اصلی گزینه 'خرید سرویس' را انتخاب کنید."
-                    )
-                    keyboard = [
-                        [InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")]
-                    ]
-                else:
-                    message = f"🔐 *مدیریت سرویس*\n\nسرویس‌های فعال شما:\n"
-                    
-                    # Create buttons for each service
-                    keyboard = []
-                    for order_id, email, seat_id in orders:
-                        message += f"\n✅ سرویس #{order_id}: `{email}`"
-                    
-                    # Add back button
-                    message += "\n\n📧 اطلاعات حساب شما در بالا نمایش داده شده است."
-                    keyboard.append([InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")])
-                
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                # Send message
-                if update.callback_query:
+                    # No approved orders
                     await update.callback_query.edit_message_text(
-                        message,
-                        parse_mode="Markdown",
-                        reply_markup=reply_markup
+                        "🔍 *مدیریت سرویس*\n\n"
+                        "❌ شما هنوز هیچ سرویس فعالی ندارید.\n\n"
+                        "💡 برای خرید سرویس، از منوی اصلی گزینه «⭐️ خرید سرویس» را انتخاب کنید.",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")]
+                        ]),
+                        parse_mode="Markdown"
                     )
-                else:
-                    await update.message.reply_text(
-                        message,
-                        parse_mode="Markdown",
-                        reply_markup=reply_markup
-                    )
-    
+                    return
+                
+                # Build service list message
+                message = "🔐 *مدیریت سرویس*\n\n"
+                message += "📋 سرویس‌های فعال شما:\n\n"
+                
+                buttons = []
+                for order_id, created_at, email, seat_id in orders:
+                    # Format date
+                    date_str = created_at.strftime("%Y/%m/%d")
+                    message += f"🔹 سفارش #{order_id}\n"
+                    message += f"📧 {email}\n"
+                    message += f"📅 {date_str}\n\n"
+                    
+                    # Add 2FA button for this order
+                    buttons.append([
+                        InlineKeyboardButton(
+                            f"📲 کد 2FA سفارش #{order_id}", 
+                            callback_data=f"setup2fa:{order_id}"
+                        )
+                    ])
+                
+                # Add back button
+                buttons.append([
+                    InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")
+                ])
+                
+                await update.callback_query.edit_message_text(
+                    message,
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                    parse_mode="Markdown"
+                )
+                
     except Exception as e:
-        logger.error(f"Error managing services: {e}")
-        error_message = "متأسفانه در نمایش سرویس‌ها خطایی رخ داد. لطفا بعدا تلاش کنید."
-        
-        if update.callback_query:
-            await update.callback_query.edit_message_text(error_message)
-        else:
-            await update.message.reply_text(error_message)
+        logger.error(f"Error in manage_services: {e}")
+        await update.callback_query.edit_message_text(
+            "❌ خطا در دریافت اطلاعات سرویس‌ها.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")]
+            ])
+        )
 
 
 async def show_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2647,24 +2696,59 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Log all callback queries for debugging
     logger.info(f"Callback handler processing: '{data}' from user {user.id}")
     
+    # Handle channel subscription check
+    if data == "check_sub":
+        if await is_subscribed(context.bot, user.id):
+            await query.answer("✅ عضویت تایید شد", show_alert=True)
+            # Show main menu after successful subscription check
+            await query.edit_message_text(
+                f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
+                f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
+                reply_markup=get_main_menu_keyboard(),
+                parse_mode="Markdown"
+            )
+        else:
+            await query.answer("هنوز عضو نیستید", show_alert=True)
+        return
+    
     if data == "buy_service":
+        # Check subscription before showing subscription options
+        if not await is_subscribed(context.bot, user.id):
+            await send_lock_message(update, context)
+            return
         # Show subscription options
         await show_subscription_options(update, context)
         
     elif data == "buy:1mo":
+        # Check subscription before showing purchase info
+        if not await is_subscribed(context.bot, user.id):
+            await send_lock_message(update, context)
+            return
         # Show purchase info for one-month plan
         await show_purchase_info(update, context)
         
     elif data == "wallet":
+        # Check subscription before showing wallet
+        if not await is_subscribed(context.bot, user.id):
+            await send_lock_message(update, context)
+            return
         # Handle wallet button
         await show_wallet(update, context)
         
     elif data == "menu:ref":
+        # Check subscription before showing referral menu
+        if not await is_subscribed(context.bot, user.id):
+            await send_lock_message(update, context)
+            return
         # Handle referral menu
         from handlers.referral import show_referral_menu
         await show_referral_menu(update, context)
         
     elif data == "manage_service":
+        # Check subscription before managing services
+        if not await is_subscribed(context.bot, user.id):
+            await send_lock_message(update, context)
+            return
         # Handle manage service button
         await manage_services(update, context)
         
