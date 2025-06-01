@@ -289,12 +289,25 @@ async def get_channel_join_keyboard(missing_channels: list):
 
 async def send_join_channels_message(update: Update, context: ContextTypes.DEFAULT_TYPE, missing_channels: list):
     """Send message asking user to join required channels."""
-    message_text = (
-        "🔸 کاربر محترم اکانت یار ، جهت استفاده بهتر از ربات و اطلاع از آخرین اخبار و اطلاعیه ها لطفا ابتدا عضو کانال زیر بشید 👇\n\n"
-        "🛍 @AccYarVPN\n"
-        "🛍 @AccYarVPN\n\n"
-        "پس از عضویت روی دکمه «تأیید عضویت» بزنید تا ربات براتون فعال بشه"
-    )
+    # Check if this is from a failed membership check
+    is_recheck = update.callback_query and update.callback_query.data == "check_membership"
+    
+    if is_recheck:
+        message_text = (
+            "❌ *عضویت شما تأیید نشد!*\n\n"
+            "🔸 کاربر محترم، شما هنوز در کانال مورد نظر عضو نشده‌اید.\n\n"
+            "لطفا ابتدا روی لینک زیر کلیک کرده و عضو کانال شوید:\n\n"
+            "🛍 @AccYarVPN\n"
+            "🛍 @AccYarVPN\n\n"
+            "⚠️ توجه: بعد از عضویت، حتماً روی دکمه «تأیید عضویت» بزنید تا ربات براتون فعال بشه"
+        )
+    else:
+        message_text = (
+            "🔸 کاربر محترم اکانت یار ، جهت استفاده بهتر از ربات و اطلاع از آخرین اخبار و اطلاعیه ها لطفا ابتدا عضو کانال زیر بشید 👇\n\n"
+            "🛍 @AccYarVPN\n"
+            "🛍 @AccYarVPN\n\n"
+            "پس از عضویت روی دکمه «تأیید عضویت» بزنید تا ربات براتون فعال بشه"
+        )
     
     keyboard = await get_channel_join_keyboard(missing_channels)
     
@@ -2897,10 +2910,9 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 parse_mode="Markdown"
             )
         else:
-            # User is still not a member, show error message
-            await query.answer("❌ شما هنوز تو کانال مورد نظر عضو نشدید", show_alert=True)
-            # Don't edit the message since content would be the same
-        
+            # User is still not a member, show join channels message again
+            await send_join_channels_message(update, context, missing_channels)
+    
     # Seat management callbacks
     elif data.startswith("seat:"):
         # Check if user is admin
