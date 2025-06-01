@@ -164,6 +164,111 @@ def decrypt(token: bytes) -> str:
     return decrypt_secret(token)
 
 
+# Force Join Settings - Global variables
+FORCE_JOIN_ENABLED = False
+REQUIRED_CHANNELS = []
+
+async def load_force_join_settings():
+    """Load force join settings from database."""
+    global FORCE_JOIN_ENABLED, REQUIRED_CHANNELS
+    try:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                # Get force join enabled status
+                cur.execute("SELECT val FROM settings WHERE key = 'force_join_enabled'")
+                result = cur.fetchone()
+                FORCE_JOIN_ENABLED = result and result[0].lower() == 'true'
+                
+                # Get required channels list
+                cur.execute("SELECT val FROM settings WHERE key = 'required_channels'")
+                result = cur.fetchone()
+                if result and result[0]:
+                    # Parse comma-separated channel IDs/usernames
+                    REQUIRED_CHANNELS = [ch.strip() for ch in result[0].split(',') if ch.strip()]
+                else:
+                    REQUIRED_CHANNELS = []
+                    
+        logger.info(f"Force join settings loaded: enabled={FORCE_JOIN_ENABLED}, channels={REQUIRED_CHANNELS}")
+                    
+    except Exception as e:
+        logger.error(f"Error loading force join settings: {e}")
+        FORCE_JOIN_ENABLED = False
+        REQUIRED_CHANNELS = []
+
+async def check_channel_membership(user_id: int, bot) -> tuple[bool, list]:
+    """
+    Check if user is member of all required channels.
+    Returns (is_member_of_all, list_of_missing_channels)
+    """
+    if not FORCE_JOIN_ENABLED or not REQUIRED_CHANNELS:
+        return True, []
+    
+    missing_channels = []
+    
+    for channel in REQUIRED_CHANNELS:
+        try:
+            member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
+            if member.status in ['left', 'kicked']:
+                missing_channels.append(channel)
+        except Exception as e:
+            logger.error(f"Error checking membership for channel {channel}: {e}")
+            # If we can't check, assume user is not member
+            missing_channels.append(channel)
+    
+    return len(missing_channels) == 0, missing_channels
+
+async def get_channel_join_keyboard(missing_channels: list):
+    """Create inline keyboard with channel join buttons."""
+    keyboard = []
+    
+    for channel in missing_channels:
+        # Try to get channel info to create proper join link
+        try:
+            if channel.startswith('@'):
+                join_url = f"https://t.me/{channel[1:]}"
+                button_text = f"🔗 عضویت در {channel}"
+            elif channel.startswith('-100'):
+                # Private channel with numeric ID
+                join_url = f"https://t.me/c/{channel[4:]}"
+                button_text = f"🔗 عضویت در کانال"
+            else:
+                join_url = f"https://t.me/{channel}"
+                button_text = f"🔗 عضویت در {channel}"
+                
+            keyboard.append([InlineKeyboardButton(button_text, url=join_url)])
+        except:
+            # Fallback for problematic channel formats
+            keyboard.append([InlineKeyboardButton(f"🔗 عضویت در کانال", url=f"https://t.me/{channel}")])
+    
+    # Add check membership button
+    keyboard.append([InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_membership")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+async def send_join_channels_message(update: Update, context: ContextTypes.DEFAULT_TYPE, missing_channels: list):
+    """Send message asking user to join required channels."""
+    message_text = (
+        "🔒 *برای استفاده از ربات، ابتدا باید در کانال‌های زیر عضو شوید:*\n\n"
+        "لطفاً در تمام کانال‌های زیر عضو شده و سپس روی دکمه \"✅ بررسی عضویت\" کلیک کنید.\n\n"
+        "⚠️ *توجه:* تا زمانی که عضو نشوید، امکان استفاده از ربات وجود ندارد."
+    )
+    
+    keyboard = await get_channel_join_keyboard(missing_channels)
+    
+    if update.callback_query:
+        await update.callback_query.edit_message_text(
+            message_text,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    elif update.message:
+        await update.message.reply_text(
+            message_text,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+
+
 def get_main_menu_keyboard():
     """Create the main menu inline keyboard."""
     keyboard = [
@@ -328,6 +433,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Create user record if it doesn't exist
     await create_or_get_user(user)
+    
+    # Check channel membership
+    is_member, missing_channels = await check_channel_membership(user.id, context.bot)
+    if not is_member:
+        await send_join_channels_message(update, context, missing_channels)
+        return
     
     # Send welcome message with main menu
     await update.message.reply_text(
@@ -1445,6 +1556,49 @@ async def approve_order(order_id):
                     db.inc_utm(utm_keyword, 'amount', amount)
                 
                 conn.commit()
+                
+                # Send sell report to LOG_SELL_CHID
+                if LOG_SELL_CHID:
+                    try:
+                        # Get seat details
+                        cur.execute(
+                            "SELECT email, pass_enc, secret_enc, max_slots, sold FROM seats WHERE id = %s",
+                            (seat["id"],)
+                        )
+                        seat_details = cur.fetchone()
+                        if seat_details:
+                            email, pass_enc, secret_enc, max_slots, sold = seat_details
+                            remaining_slots = max_slots - sold
+                            
+                            # Decrypt password and secret
+                            password = decrypt(pass_enc)
+                            secret = decrypt(secret_enc)
+                            
+                            # Get username if available
+                            cur.execute(
+                                "SELECT username FROM users WHERE id = %s",
+                                (user_id,)
+                            )
+                            username_result = cur.fetchone()
+                            username = username_result[0] if username_result else "نامشخص"
+                            
+                            # Create sell report message
+                            sell_report = (
+                                f"✅ گزارش فروش\n\n"
+                                f"اکانت ویندسکرایب یک ماهه برای کاربر @{username} ارسال شد\n\n"
+                                f"📧 ایمیل: {email}\n"
+                                f"🔑 رمز عبور: {password}\n"
+                                f"🔐 کد 2FA اکانت: {secret}\n\n"
+                                f"💺 ظرفیت کل صندلی های باقی مانده: {remaining_slots}"
+                            )
+                            
+                            # Send sell report to LOG_SELL_CHID
+                            await context.bot.send_message(
+                                chat_id=LOG_SELL_CHID,
+                                text=sell_report
+                            )
+                    except Exception as e:
+                        logger.error(f"Error sending sell report to LOG_SELL_CHID: {e}")
                 
                 return True, {
                     "tg_id": tg_id,
@@ -2638,6 +2792,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Log all callback queries for debugging
     logger.info(f"Callback handler processing: '{data}' from user {user.id}")
     
+    # Skip membership check for admin callbacks and check_membership itself
+    skip_membership_check = (
+        data == "check_membership" or 
+        data.startswith("admin:") or 
+        data.startswith("approve:") or 
+        data.startswith("reject:") or
+        data.startswith("seat:") or
+        await check_admin(user.id)
+    )
+    
+    # Check channel membership for regular users (not admins)
+    if not skip_membership_check:
+        is_member, missing_channels = await check_channel_membership(user.id, context.bot)
+        if not is_member:
+            await send_join_channels_message(update, context, missing_channels)
+            return
+    
     if data == "buy_service":
         # Show subscription options
         await show_subscription_options(update, context)
@@ -2662,11 +2833,29 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif data == "back_to_menu":
         # Return to main menu
         await query.edit_message_text(
-        f"👤 * به ربات "اکانت یار" : فروش اکانت قانونی فیلترشکن خوش آمدید👋*\n\n"
-        f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
+            f"👤 * به ربات "اکانت یار" : فروش اکانت قانونی فیلترشکن خوش آمدید👋*\n\n"
+            f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
             reply_markup=get_main_menu_keyboard(),
             parse_mode="Markdown"
         )
+        
+    elif data == "check_membership":
+        # Check channel membership when user clicks the button
+        is_member, missing_channels = await check_channel_membership(user.id, context.bot)
+        if is_member:
+            # User is now a member, show main menu
+            await query.edit_message_text(
+                f"✅ *عضویت شما تأیید شد!*\n\n"
+                f"👤  به ربات \"اکانت یار\" : فروش اکانت قانونی فیلترشکن خوش آمدید 👋\n\n"
+                f"✅ سرویس های فعال درحال حاضر:\n"
+                f"- اکانت قانونی فیلترشکن پرسرعت ویندسکرایب 🔐\n\n"
+                f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
+                reply_markup=get_main_menu_keyboard(),
+                parse_mode="Markdown"
+            )
+        else:
+            # User is still not a member, show join message again
+            await send_join_channels_message(update, context, missing_channels)
         
     # Seat management callbacks
     elif data.startswith("seat:"):
@@ -3601,6 +3790,10 @@ def main() -> None:
 
     # Initialize database
     db.init_db()
+    
+    # Load force join settings
+    import asyncio
+    asyncio.run(load_force_join_settings())
     
     # Register handlers
     application.add_handler(CommandHandler("start", start))

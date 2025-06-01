@@ -80,7 +80,9 @@ CREATE TABLE utm_stats (
 INSERT INTO settings (key, val) VALUES 
     ('min_order_amount', '100000'),
     ('support_username', 'support'),
-    ('version', '1.0.0');
+    ('version', '1.0.0'),
+    ('force_join_enabled', 'false'),
+    ('required_channels', '');
 
 -- Create indexes for better performance
 CREATE INDEX idx_users_tg_id ON users(tg_id);
