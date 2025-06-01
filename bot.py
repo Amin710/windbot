@@ -36,11 +36,36 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional, Union, Tuple, List, Any
 
-# Import handlers modules
-from handlers import referral
-from handlers import admin_cards
-from handlers import card_manager
-from tabulate import tabulate
+# Import handlers modules with error handling
+try:
+    from handlers import referral
+    logger.info("Successfully imported referral handler")
+except ImportError as e:
+    logger.warning(f"Could not import referral handler: {e}")
+    referral = None
+
+try:
+    from handlers import admin_cards
+    logger.info("Successfully imported admin_cards handler")
+except ImportError as e:
+    logger.warning(f"Could not import admin_cards handler: {e}")
+    admin_cards = None
+
+try:
+    from handlers import card_manager
+    logger.info("Successfully imported card_manager handler")
+except ImportError as e:
+    logger.warning(f"Could not import card_manager handler: {e}")
+    card_manager = None
+
+try:
+    from tabulate import tabulate
+    logger.info("Successfully imported tabulate")
+except ImportError as e:
+    logger.warning(f"Could not import tabulate: {e}")
+    # Define a dummy tabulate function
+    def tabulate(data, headers=None, tablefmt="simple"):
+        return str(data)
 
 from telegram.error import TelegramError, Forbidden, BadRequest, RetryAfter
 
@@ -57,7 +82,16 @@ from telegram.ext import (
     filters,
 )
 
-import db
+# Import database module with error handling
+try:
+    import db
+    logger.info("Successfully imported db module")
+except ImportError as e:
+    logger.error(f"Could not import db module: {e}")
+    raise SystemExit("Database module is required for the bot to function")
+except Exception as e:
+    logger.error(f"Error initializing db module: {e}")
+    raise SystemExit(f"Database initialization failed: {e}")
 
 # Import enhanced debug logger
 try:
@@ -1687,7 +1721,7 @@ async def reject_order(order_id):
         return False, str(e)
 
 
-# Admin state constants for conversation handlers
+# Admin state constants for conversation handlers (moved here to prevent circular imports)
 ADMIN_WAITING_CARD = 1
 ADMIN_WAITING_USD_RATE = 2
 ADMIN_WAITING_SEAT_INFO = 3
