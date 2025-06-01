@@ -36,11 +36,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional, Union, Tuple, List, Any
 
-# Scheduler imports
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-import pytz
-
 # Import handlers modules
 from handlers import referral
 from handlers import admin_cards
@@ -110,14 +105,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Environment variables
-load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_URI = os.getenv("DB_URI")
 FERNET_KEY = os.getenv("FERNET_KEY")
 RECEIPT_CHANNEL_ID = os.getenv("RECEIPT_CHANNEL_ID")
-LOG_SELL_CHID = os.getenv("LOG_SELL_CHID")
 CARD_NUMBER = os.getenv("CARD_NUMBER", "")
-CH_LOCK_ID = os.getenv("CH_LOCK_ID")  # Channel membership lock
 
 # Initialize Fernet for encryption/decryption
 if not FERNET_KEY:
@@ -168,49 +160,6 @@ def decrypt_secret(token) -> str:
 def decrypt(token: bytes) -> str:
     """Decrypt bytes using Fernet symmetric encryption (legacy version)."""
     return decrypt_secret(token)
-
-
-# Channel membership lock functions
-async def is_subscribed(bot, user_id) -> bool:
-    """Check if user is subscribed to the channel."""
-    if not CH_LOCK_ID:
-        return True  # If no channel lock is set, allow access
-    
-    try:
-        m = await bot.get_chat_member(CH_LOCK_ID, user_id)
-        return m.status in ("member", "administrator", "creator")
-    except Exception:
-        return False  # treat errors as not subscribed
-
-
-async def send_lock_message(update, context):
-    """Send channel subscription lock message."""
-    text = (
-        "🔸 کاربر محترم اکانت یار، جهت استفاده از ربات ابتدا عضو کانال زیر شوید 👇\n\n"
-        "🛍 @AccYarVPN\n"
-        "🛍 @AccYarVPN\n\n"
-        "سپس روی دکمه «✅ بررسی عضویت» بزنید."
-    )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🛍 عضویت در کانال", url="https://t.me/AccYarVPN")],
-        [InlineKeyboardButton("✅ بررسی عضویت", callback_data="check_sub")]
-    ])
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=kb)
-    else:
-        await update.message.reply_text(text, reply_markup=kb)
-
-
-def channel_required(func):
-    """Decorator to require channel membership before accessing a function."""
-    async def wrapper(update, context, *args, **kwargs):
-        uid = update.effective_user.id
-        if await is_subscribed(context.bot, uid):
-            return await func(update, context, *args, **kwargs)
-        else:
-            await send_lock_message(update, context)
-    return wrapper
 
 
 def get_main_menu_keyboard():
@@ -368,11 +317,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Create user record if it doesn't exist
     await create_or_get_user(user)
     
-    # Check subscription status and show appropriate message
-    if not await is_subscribed(context.bot, user.id):
-        await send_lock_message(update, context)
-        return
-    
     # Send welcome message with main menu
     await update.message.reply_text(
         f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
@@ -510,10 +454,10 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def backup_db(bot, status_message):
-    """Create a database backup using Python and send it to the sales log channel."""
-    if not LOG_SELL_CHID:
+    """Create a database backup using Python and send it to the admin channel."""
+    if not RECEIPT_CHANNEL_ID:
         await status_message.edit_text(
-            "❌ *خطا: LOG_SELL_CHID تنظیم نشده است*",
+            "❌ *خطا: RECEIPT_CHANNEL_ID تنظیم نشده است*",
             parse_mode="Markdown"
         )
         return
@@ -626,10 +570,10 @@ async def backup_db(bot, status_message):
             try:
                 with open(backup_path, "rb") as backup_file:
                     await bot.send_document(
-                        chat_id=LOG_SELL_CHID,
+                        chat_id=RECEIPT_CHANNEL_ID,
                         document=backup_file,
                         filename=backup_filename,
-                        caption=f"📂 *بکاپ دیتابیس* - {timestamp}\n💾 حجم: {file_size_mb:.2f} MB"
+                        caption=f"Database Backup - {timestamp}\nSize: {file_size_mb:.2f} MB"
                     )
                 
                 # Update status message
@@ -655,138 +599,6 @@ async def backup_db(bot, status_message):
             parse_mode="Markdown",
             reply_markup=get_admin_keyboard()
         )
-
-
-async def automated_backup(application):
-    """Automated backup function that runs daily at 3 AM Iran time."""
-    try:
-        logger.info("Starting automated daily backup...")
-        
-        if not LOG_SELL_CHID:
-            logger.error("LOG_SELL_CHID not configured, skipping automated backup")
-            return
-        
-        # Create timestamp for backup
-        iran_tz = pytz.timezone('Asia/Tehran')
-        timestamp = datetime.now(iran_tz).strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"wind_reseller_auto_backup_{timestamp}.sql"
-        
-        try:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                backup_path = Path(temp_dir) / backup_filename
-                
-                logger.info("Creating automated backup file...")
-                
-                # Create backup using Python
-                with open(backup_path, "w", encoding="utf-8") as backup_file:
-                    # Write backup header
-                    backup_file.write(f"-- Wind Reseller Automated Backup\n")
-                    backup_file.write(f"-- Generated on: {timestamp} (Iran Time)\n")
-                    backup_file.write(f"-- PostgreSQL Database Backup\n\n")
-                    backup_file.write("BEGIN;\n\n")
-                    
-                    # Get database connection
-                    with db.get_conn() as conn:
-                        with conn.cursor() as cur:
-                            # Get all table names
-                            cur.execute("""
-                                SELECT tablename FROM pg_tables 
-                                WHERE schemaname = 'public' 
-                                ORDER BY tablename
-                            """)
-                            tables = [row[0] for row in cur.fetchall()]
-                            
-                            logger.info(f"Backing up {len(tables)} tables...")
-                            
-                            for table in tables:
-                                # Write table structure comment
-                                backup_file.write(f"-- Table: {table}\n")
-                                
-                                # Get table data
-                                cur.execute(f"SELECT * FROM {table}")
-                                rows = cur.fetchall()
-                                
-                                if rows:
-                                    # Get column names
-                                    column_names = [desc[0] for desc in cur.description]
-                                    
-                                    # Write INSERT statements
-                                    for row in rows:
-                                        values = []
-                                        for value in row:
-                                            if value is None:
-                                                values.append("NULL")
-                                            elif isinstance(value, str):
-                                                # Escape single quotes
-                                                escaped_value = value.replace("'", "''")
-                                                values.append(f"'{escaped_value}'")
-                                            elif isinstance(value, (int, float)):
-                                                values.append(str(value))
-                                            elif isinstance(value, bool):
-                                                values.append("TRUE" if value else "FALSE")
-                                            else:
-                                                # For other types, convert to string and escape
-                                                escaped_value = str(value).replace("'", "''")
-                                                values.append(f"'{escaped_value}'")
-                                        
-                                        backup_file.write(
-                                            f"INSERT INTO {table} ({', '.join(column_names)}) "
-                                            f"VALUES ({', '.join(values)});\n"
-                                        )
-                                    
-                                    backup_file.write(f"\n")
-                            
-                            # Write backup footer
-                            backup_file.write("COMMIT;\n")
-                            backup_file.write(f"\n-- Automated backup completed at {timestamp}\n")
-                    
-                    # Check if backup file exists and has content
-                    if not backup_path.exists() or backup_path.stat().st_size == 0:
-                        logger.error("Automated backup file creation failed")
-                        return
-                    
-                    # Send the backup file to the log channel
-                    file_size = backup_path.stat().st_size
-                    file_size_mb = file_size / (1024 * 1024)
-                    
-                    logger.info(f"Sending automated backup file ({file_size_mb:.2f} MB) to log channel...")
-                    
-                    with open(backup_path, "rb") as backup_file_handle:
-                        await application.bot.send_document(
-                            chat_id=LOG_SELL_CHID,
-                            document=backup_file_handle,
-                            filename=backup_filename,
-                            caption=(
-                                f"🕰 *بکاپ اتوماتیک روزانه*\n\n"
-                                f"📅 تاریخ: {datetime.now(iran_tz).strftime('%Y/%m/%d')}\n"
-                                f"🕐 ساعت: {datetime.now(iran_tz).strftime('%H:%M')} (وقت تهران)\n"
-                                f"💾 حجم: {file_size_mb:.2f} MB\n"
-                                f"📂 نام فایل: `{backup_filename}`"
-                            ),
-                            parse_mode="Markdown"
-                        )
-                    
-                    logger.info("Automated backup completed successfully")
-                    
-        except Exception as backup_error:
-            logger.error(f"Error in automated backup creation: {backup_error}")
-            # Send error notification to log channel
-            try:
-                iran_tz = pytz.timezone('Asia/Tehran')
-                await application.bot.send_message(
-                    chat_id=LOG_SELL_CHID,
-                    text=(
-                        f"⚠️ *خطا در بکاپ اتوماتیک*\n\n"
-                        f"📅 تاریخ: {datetime.now(iran_tz).strftime('%Y/%m/%d %H:%M')}\n"
-                        f"❌ خطا: `{str(backup_error)[:300]}`"
-                    ),
-                    parse_mode="Markdown"
-                )
-            except Exception:
-                pass  # If we can't send error notification, just log it
-                
-    except Exception as e:
-        logger.error(f"Fatal error in automated backup: {e}")
 
 
 async def send_broadcast_messages(bot, message, user_ids, admin_chat_id):
@@ -887,73 +699,74 @@ async def manage_services(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.effective_user
     
     try:
-        # Check for approved orders and get seat information
         with db.get_conn() as conn:
             with conn.cursor() as cur:
-                # Get approved orders with seat details
-                cur.execute("""
-                    SELECT o.id, o.created_at, s.email, s.id as seat_id
-                    FROM orders o
-                    LEFT JOIN seats s ON o.seat_id = s.id
-                    WHERE o.user_id = (SELECT id FROM users WHERE tg_id = %s)
-                    AND o.status = 'approved'
-                    ORDER BY o.created_at DESC
-                """, (user.id,))
+                # Get user ID
+                cur.execute("SELECT id FROM users WHERE tg_id = %s", (user.id,))
+                result = cur.fetchone()
+                if not result:
+                    # User not found in database
+                    user_id = await create_or_get_user(user)
+                else:
+                    user_id = result[0]
                 
+                # Get user's approved orders with seat information
+                cur.execute(
+                    """SELECT o.id, s.email, s.id as seat_id 
+                       FROM orders o 
+                       JOIN seats s ON o.seat_id = s.id 
+                       WHERE o.user_id = %s AND o.status = 'approved' 
+                       ORDER BY o.approved_at DESC""",
+                    (user_id,)
+                )
                 orders = cur.fetchall()
                 
+                # Create message and keyboard
                 if not orders:
-                    # No approved orders
-                    await update.callback_query.edit_message_text(
-                        "🔍 *مدیریت سرویس*\n\n"
-                        "❌ شما هنوز هیچ سرویس فعالی ندارید.\n\n"
-                        "💡 برای خرید سرویس، از منوی اصلی گزینه «⭐️ خرید سرویس» را انتخاب کنید.",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")]
-                        ]),
-                        parse_mode="Markdown"
+                    message = (
+                        f"🔐 *مدیریت سرویس*\n\n"
+                        f"❌ شما هیچ سرویس فعالی ندارید.\n\n"
+                        f"👉 برای خرید سرویس از منوی اصلی گزینه 'خرید سرویس' را انتخاب کنید."
                     )
-                    return
-                
-                # Build service list message
-                message = "🔐 *مدیریت سرویس*\n\n"
-                message += "📋 سرویس‌های فعال شما:\n\n"
-                
-                buttons = []
-                for order_id, created_at, email, seat_id in orders:
-                    # Format date
-                    date_str = created_at.strftime("%Y/%m/%d")
-                    message += f"🔹 سفارش #{order_id}\n"
-                    message += f"📧 {email}\n"
-                    message += f"📅 {date_str}\n\n"
+                    keyboard = [
+                        [InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")]
+                    ]
+                else:
+                    message = f"🔐 *مدیریت سرویس*\n\nسرویس‌های فعال شما:\n"
                     
-                    # Add 2FA button for this order
-                    buttons.append([
-                        InlineKeyboardButton(
-                            f"📲 کد 2FA سفارش #{order_id}", 
-                            callback_data=f"setup2fa:{order_id}"
-                        )
-                    ])
+                    # Create buttons for each service
+                    keyboard = []
+                    for order_id, email, seat_id in orders:
+                        message += f"\n✅ سرویس #{order_id}: `{email}`"
+                    
+                    # Add back button
+                    message += "\n\n📧 اطلاعات حساب شما در بالا نمایش داده شده است."
+                    keyboard.append([InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")])
                 
-                # Add back button
-                buttons.append([
-                    InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")
-                ])
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                await update.callback_query.edit_message_text(
-                    message,
-                    reply_markup=InlineKeyboardMarkup(buttons),
-                    parse_mode="Markdown"
-                )
-                
+                # Send message
+                if update.callback_query:
+                    await update.callback_query.edit_message_text(
+                        message,
+                        parse_mode="Markdown",
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await update.message.reply_text(
+                        message,
+                        parse_mode="Markdown",
+                        reply_markup=reply_markup
+                    )
+    
     except Exception as e:
-        logger.error(f"Error in manage_services: {e}")
-        await update.callback_query.edit_message_text(
-            "❌ خطا در دریافت اطلاعات سرویس‌ها.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 بازگشت به منو", callback_data="back_to_menu")]
-            ])
-        )
+        logger.error(f"Error managing services: {e}")
+        error_message = "متأسفانه در نمایش سرویس‌ها خطایی رخ داد. لطفا بعدا تلاش کنید."
+        
+        if update.callback_query:
+            await update.callback_query.edit_message_text(error_message)
+        else:
+            await update.message.reply_text(error_message)
 
 
 async def show_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1518,7 +1331,7 @@ async def approve_order(order_id):
                 
                 # Get order details
                 cur.execute(
-                    "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer, u.username, u.first_name FROM orders o "
+                    "SELECT o.user_id, o.amount, o.utm_keyword, u.tg_id, u.referrer FROM orders o "
                     "JOIN users u ON o.user_id = u.id "
                     "WHERE o.id = %s AND o.status IN ('pending', 'receipt')",
                     (order_id,)
@@ -1529,7 +1342,7 @@ async def approve_order(order_id):
                     logger.error(f"Order {order_id} not found or not in pending/receipt status")
                     return False, "خطا: سفارش یافت نشد یا در وضعیت قابل تایید نیست"
                     
-                user_id, amount, utm_keyword, tg_id, referrer_id, username, first_name = order
+                user_id, amount, utm_keyword, tg_id, referrer_id = order
                 
                 # Get an available seat
                 seat = await get_available_seat()
@@ -1584,71 +1397,11 @@ async def approve_order(order_id):
                 return True, {
                     "tg_id": tg_id,
                     "order_id": order_id,
-                    "seat": seat,
-                    "user": {
-                        "tg_id": tg_id,
-                        "username": username,
-                        "first_name": first_name
-                    }
+                    "seat": seat
                 }
     except Exception as e:
         logger.error(f"Error approving order: {e}")
         return False, str(e)
-
-
-async def send_sale_report(bot, order_id, user_data, seat_data):
-    """Send sale report to the sales log channel."""
-        if not LOG_SELL_CHID:
-        logger.warning("LOG_SELL_CHID not configured, skipping sale report")
-            return
-        
-    try:
-        # Get user information
-        tg_id = user_data.get("tg_id")
-        username = user_data.get("username")
-        first_name = user_data.get("first_name", "")
-        
-        # Format user display
-        if username:
-            user_display = f"@{username}"
-        else:
-            user_display = f"ایدی عددی: {tg_id}"
-        
-        # Decrypt seat credentials
-        email = seat_data["email"]
-        password = decrypt_secret(seat_data["pass_enc"])
-        secret = decrypt_secret(seat_data["secret_enc"])
-        
-        # Get total remaining capacity
-        with db.get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT SUM(max_slots - sold) FROM seats WHERE status = 'active'"
-                )
-                result = cur.fetchone()
-                remaining_capacity = result[0] if result and result[0] else 0
-        
-        # Create sale report message
-        report_message = (
-            f"✅ <b>گزارش فروش</b>\n\n"
-            f"اکانت ویندسکرایب یک ماهه برای کاربر {user_display} ارسال شد\n\n"
-            f"📧 <b>ایمیل:</b> <code>{email}</code>\n"
-            f"🔑 <b>رمز عبور:</b> <code>{password}</code>\n"
-            f"🔐 <b>کد 2FA اکانت:</b> <code>{secret}</code>\n\n"
-            f"💺 <b>ظرفیت کل صندلی های باقی مانده:</b> {remaining_capacity:,}"
-        )
-        
-        # Send report to sales log channel
-        await bot.send_message(
-            chat_id=LOG_SELL_CHID,
-            text=report_message,
-            parse_mode="HTML"
-        )
-        
-        logger.info(f"Sale report sent for order {order_id} to channel {LOG_SELL_CHID}")
-        
-    except Exception as e:
-        logger.error(f"Error sending sale report for order {order_id}: {e}")
 
 
 async def reject_order(order_id):
@@ -1718,8 +1471,8 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     query = update.callback_query
     
     try:
-                    with db.get_conn() as conn:
-                        with conn.cursor() as cur:
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
                 # Get USD rate with error handling
                 try:
                     usd_rate = int(db.get_setting('usd_rate', '70000'))  # Default 70,000 Toman per USD
@@ -1733,7 +1486,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 
                 try:
                     # Check if joined_at column exists in users table
-                            cur.execute("""
+                    cur.execute("""
                         SELECT column_name 
                         FROM information_schema.columns 
                         WHERE table_name = 'users' AND column_name = 'joined_at'
@@ -2363,7 +2116,7 @@ async def process_csv_upload_direct(update: Update, context: ContextTypes.DEFAUL
                             if result is None or cur.rowcount == 0:
                                 # Email already exists
                                 duplicate_count += 1
-                                            else:
+                            else:
                                 success_count += 1
                                 logger.info(f"Added seat: {email}")
                                 
@@ -2499,8 +2252,8 @@ async def process_csv_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             if os.path.exists(csv_file_path):
                 os.remove(csv_file_path)
-                        return
-                    
+            return
+        
         # Log the fieldnames for debugging
         logger.info(f"CSV fieldnames: {header_fields}")
         
@@ -2833,59 +2586,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Log all callback queries for debugging
     logger.info(f"Callback handler processing: '{data}' from user {user.id}")
     
-    # Handle channel subscription check
-    if data == "check_sub":
-        if await is_subscribed(context.bot, user.id):
-            await query.answer("✅ عضویت تایید شد", show_alert=True)
-            # Show main menu after successful subscription check
-            await query.edit_message_text(
-                f"👤 * به ربات نمایندگی فروش اکانت ویندسکرایب خوش آمدید 👋*\n\n"
-                f"از منوی زیر، گزینه مورد نظر خود را انتخاب کنید.",
-                reply_markup=get_main_menu_keyboard(),
-                parse_mode="Markdown"
-            )
-        else:
-            await query.answer("هنوز عضو نیستید", show_alert=True)
-        return
-    
     if data == "buy_service":
-        # Check subscription before showing subscription options
-        if not await is_subscribed(context.bot, user.id):
-            await send_lock_message(update, context)
-            return
         # Show subscription options
         await show_subscription_options(update, context)
         
     elif data == "buy:1mo":
-        # Check subscription before showing purchase info
-        if not await is_subscribed(context.bot, user.id):
-            await send_lock_message(update, context)
-            return
         # Show purchase info for one-month plan
         await show_purchase_info(update, context)
         
     elif data == "wallet":
-        # Check subscription before showing wallet
-        if not await is_subscribed(context.bot, user.id):
-            await send_lock_message(update, context)
-            return
         # Handle wallet button
         await show_wallet(update, context)
         
     elif data == "menu:ref":
-        # Check subscription before showing referral menu
-        if not await is_subscribed(context.bot, user.id):
-            await send_lock_message(update, context)
-            return
         # Handle referral menu
         from handlers.referral import show_referral_menu
         await show_referral_menu(update, context)
         
     elif data == "manage_service":
-        # Check subscription before managing services
-        if not await is_subscribed(context.bot, user.id):
-            await send_lock_message(update, context)
-            return
         # Handle manage service button
         await manage_services(update, context)
         
@@ -3152,13 +2870,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             seat = order_data["seat"]
             tg_id = order_data["tg_id"]
             order_id = order_data["order_id"]
-            user_data = order_data["user"]
-            
-            # Send sale report to log channel
-            try:
-                await send_sale_report(context.bot, order_id, user_data, seat)
-            except Exception as e:
-                logger.error(f"Error sending sale report for order {order_id}: {e}")
             
             # Decrypt credentials
             email = seat["email"]
@@ -3349,6 +3060,126 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     # For other BadRequest errors, just log and notify
                     logger.error(f"Error updating admin message on rejection: {e}")
                     await query.answer("خطا در بروزرسانی پیام", show_alert=True)
+    
+    # Handle 2FA code request
+    elif data.startswith("2fa:"):
+        # Extract seat ID
+        seat_id = int(data.split(":")[1])
+        
+        # Get the secret for the seat
+        try:
+            with db.get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT secret_enc FROM seats WHERE id = %s", (seat_id,))
+                    result = cur.fetchone()
+                    if not result:
+                        await query.edit_message_text("خطا: اطلاعات صندلی یافت نشد.")
+                        return
+                    
+                    secret_enc = result[0]
+                    
+                    # Decrypt the secret
+                    secret = decrypt(secret_enc)
+                    
+                    # Generate 2FA code using TOTP
+                    import pyotp
+                    totp = pyotp.TOTP(secret)
+                    code = totp.now()
+                    
+                    # Calculate remaining seconds until code expires
+                    remaining_seconds = 30 - (int(time.time()) % 30)
+                    
+                    # Create appropriate message based on attempt count
+                    if new_count == 1:
+                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
+                    elif new_count == 2:
+                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
+                    
+                    # Answer callback query first
+                    await query.answer()
+                    
+                    # Send 2FA code as a separate message
+                    await context.bot.send_message(
+                        chat_id=user.id,
+                        text=message_text,
+                        parse_mode="Markdown"
+                    )
+        except Exception as e:
+            logger.error(f"Error generating TOTP code: {e}")
+            await query.answer("خطا در تولید کد", show_alert=True)
+            
+    # Handle seat operations
+    elif data.startswith("seat:"):
+        # Handle seat operations (delete, edit, info)
+        parts = data.split(":")
+        if len(parts) < 3:
+            await query.answer("درخواست نامعتبر", show_alert=True)
+            return
+            
+        action = parts[1]
+        seat_id = int(parts[2])
+        
+        # Import account management handlers
+        from handlers.admin_accounts import handle_seat_delete, handle_seat_edit_prompt
+        
+        if action == "del":
+            # Handle seat deletion
+            await handle_seat_delete(update, context, seat_id)
+        elif action == "edit":
+            # Handle seat editing
+            await handle_seat_edit_prompt(update, context, seat_id)
+        elif action == "info":
+            # Show seat info (currently redirects to edit for simplicity)
+            await handle_seat_edit_prompt(update, context, seat_id)
+
+    # Admin: Card management
+    elif data == "admin:card" or data == "admin:cards":
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+
+        # Redirect to new card management system
+        await admin_cards.show_cards_list(update, context)
+        
+    # Card management callbacks
+    elif data == "card:add":
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
+        await admin_cards.add_card_prompt(update, context)
+        
+    elif data.startswith("card:del:"):
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
+        try:
+            card_id = int(data.split(":")[2])
+            await admin_cards.delete_card(update, context, card_id)
+        except (ValueError, IndexError) as e:
+            logger.error(f"Invalid card deletion ID format: {e}")
+            await query.answer("خطا در حذف کارت", show_alert=True)
+            
+    elif data.startswith("card:edit:"):
+        # Check if user is admin
+        is_admin = await check_admin(user.id)
+        if not is_admin:
+            await query.answer("شما اجازه دسترسی به این بخش را ندارید.", show_alert=True)
+            return
+        
+        try:
+            card_id = int(data.split(":")[2])
+            await admin_cards.edit_card_prompt(update, context, card_id)
+        except (ValueError, IndexError) as e:
+            logger.error(f"Invalid card edit ID format: {e}")
+            await query.answer("خطا در ویرایش کارت", show_alert=True)
 
     # Handle quick TOTP code generation with limited retries
     elif data.startswith("code:"):
@@ -3379,21 +3210,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         # Second time within 120 seconds - allow
                         pass
                     else:
-                        # Over limit or expired - Send warning message
-                        await query.answer()
-                        
-                        # Send warning message as a separate message
-                        warning_message = (
-                            f"⚠️ *محدودیت دریافت کد 2FA*\n\n"
-                            f"❌ شما قبلاً دوبار کد 2FA دریافت کرده‌اید.\n\n"
-                            f"💡 در صورت نیاز به کمک، لطفاً با پشتیبانی تماس بگیرید."
-                        )
-                        
-                        await context.bot.send_message(
-                            chat_id=user.id,
-                            text=warning_message,
-                            parse_mode="Markdown"
-                        )
+                        # Over limit or expired
+                        await query.answer("مهلت تمام شده یا قبلاً دوبار استفاده کرده‌اید.", show_alert=True)
                         return
                     
                     # Get seat ID and secret for this order
@@ -3437,19 +3255,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     
                     # Create appropriate message based on attempt count
                     if new_count == 1:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
                     elif new_count == 2:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
                     
-                    # Answer callback query first
-                    await query.answer()
-                    
-                    # Send 2FA code as a separate message
-                    await context.bot.send_message(
-                        chat_id=user.id,
-                        text=message_text,
-                        parse_mode="Markdown"
-                    )
+                    # Show alert with code and TTL
+                    await query.answer(alert_message, show_alert=True)
                     
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
@@ -3492,6 +3303,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except Exception as e:
             logger.error(f"Error sending 2FA tutorial: {e}")
             await query.answer("خطا در ارسال آموزش", show_alert=True)
+    
+    # Handle 2FA code request
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -3601,27 +3414,6 @@ def main() -> None:
 
     # Initialize database
     db.init_db()
-    
-    # Setup automated backup scheduler
-    try:
-        scheduler = AsyncIOScheduler()
-        
-        # Set up daily backup at 3:00 AM Iran time
-        iran_tz = pytz.timezone('Asia/Tehran')
-        scheduler.add_job(
-            automated_backup,
-            CronTrigger(hour=3, minute=0, timezone=iran_tz),
-            args=[application],
-            id='daily_backup',
-            name='Daily Database Backup',
-            replace_existing=True
-        )
-        
-        scheduler.start()
-        logger.info("Automated backup scheduler started - daily backup at 3:00 AM Iran time")
-        
-    except Exception as e:
-        logger.error(f"Failed to start backup scheduler: {e}")
     
     # Register handlers
     application.add_handler(CommandHandler("start", start))
