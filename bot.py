@@ -3126,8 +3126,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds + 30 sec buffer)
-                    remaining_seconds = (60 - (int(time.time()) % 60)) + 30
+                    # Calculate remaining seconds until code expires (codes are valid for 30 seconds + 30 sec buffer)
+                    remaining_seconds = (30 - (int(time.time()) % 30)) + 30
                     
                     # Create appropriate message based on attempt count
                     if new_count == 1:
@@ -3343,8 +3343,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds + 30 sec buffer)
-                    remaining_seconds = (60 - (int(time.time()) % 60)) + 30
+                    # Calculate remaining seconds until code expires (codes are valid for 30 seconds + 30 sec buffer)
+                    remaining_seconds = (30 - (int(time.time()) % 30)) + 30
                     
                     # Update usage count and timestamp
                     new_count = twofa_count + 1
