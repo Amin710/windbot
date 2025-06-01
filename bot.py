@@ -197,7 +197,7 @@ def get_2fa_button(seat_id):
     """Create 2FA button for approved orders."""
     keyboard = [
         [
-            InlineKeyboardButton("📲 دریافت کد 2FA", callback_data=f"2fa:{seat_id}")
+            InlineKeyboardButton("📲 دریافت کد دومرحله ای", callback_data=f"2fa:{seat_id}")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -217,7 +217,7 @@ def get_code_2fa_button(order_id):
     """Create code 2FA button for generating TOTP codes."""
     keyboard = [
         [
-            InlineKeyboardButton("📲 دریافت کد 2FA", callback_data=f"code:{order_id}")
+            InlineKeyboardButton("📲 دریافت کد دومرحله ای", callback_data=f"code:{order_id}")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
