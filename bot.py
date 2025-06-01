@@ -3936,7 +3936,11 @@ async def async_main() -> None:
 
         # Run the bot until the user presses Ctrl-C
         logger.info("Starting bot polling...")
-        await application.run_polling(allowed_updates=Update.ALL_TYPES)
+        async with application:
+            await application.start()
+            await application.updater.start_polling()
+            logger.info("Bot is now running. Press Ctrl+C to stop.")
+            await application.updater.idle()
         
     except Exception as e:
         logger.error(f"Critical error in async_main: {e}")

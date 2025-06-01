@@ -1,0 +1,948 @@
+root@wind:~/windbot# docker compose up -d bot
+WARN[0000] /root/windbot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 2/2
+ ✔ Container wind_reseller_db   Healthy                                                                                                                                                          0.7s 
+ ✔ Container wind_reseller_bot  Started                                                                                                                                                          1.1s 
+root@wind:~/windbot# docker compose logs -f bot
+WARN[0000] /root/windbot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+wind_reseller_bot  | 2025-06-01 05:16:53,304 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:16:53,304 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:53,305 - asyncio - DEBUG - Using selector: EpollSelector
+wind_reseller_bot  | 2025-06-01 05:16:53,305 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:16:53,305 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:16:53,306 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:16:53,306 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:16:53,526 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,527 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:16:53,526 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,527 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:16:53,543 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:16:53,543 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:16:53,555 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,555 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,555 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,555 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,555 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:16:53,555 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:16:53,557 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:16:53,557 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:16:53,558 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,558 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,558 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:16:53,558 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:16:53,559 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,559 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,560 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | 2025-06-01 05:16:53,560 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:16:53,741 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:53,741 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | 2025-06-01 05:16:53,741 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:53,741 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | /app/bot.py:3894: PTBUserWarning: If 'per_message=False', 'CallbackQueryHandler' will not be tracked for every message. Read this FAQ entry to learn more about the per_* settings: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do.
+wind_reseller_bot  |   admin_conv_handler = ConversationHandler(
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:53,745 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:16:53,746 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:16:53,746 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:16:53,753 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  | 2025-06-01 05:16:53,753 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3955, in <module>
+wind_reseller_bot  |     main()
+wind_reseller_bot  |   File "/app/bot.py", line 3951, in main
+wind_reseller_bot  |     asyncio.run(async_main())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+wind_reseller_bot  |     return runner.run(main)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+wind_reseller_bot  |     return self._loop.run_until_complete(task)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+wind_reseller_bot  |     return future.result()
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.shutdown' was never awaited
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.initialize' was never awaited
+wind_reseller_bot  | 2025-06-01 05:16:55,960 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:16:55,960 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:55,962 - asyncio - DEBUG - Using selector: EpollSelector
+wind_reseller_bot  | 2025-06-01 05:16:55,964 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:16:55,964 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:16:55,964 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:16:55,964 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:16:56,413 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,413 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:16:56,413 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,413 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:16:56,426 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:16:56,426 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:16:56,435 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,435 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,435 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,435 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,436 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:16:56,436 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:16:56,438 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:16:56,438 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:16:56,438 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,438 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,439 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:16:56,439 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:16:56,440 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,440 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,440 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | 2025-06-01 05:16:56,440 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | 2025-06-01 05:16:56,449 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:16:56,449 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:56,450 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | 2025-06-01 05:16:56,450 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | /app/bot.py:3894: PTBUserWarning: If 'per_message=False', 'CallbackQueryHandler' will not be tracked for every message. Read this FAQ entry to learn more about the per_* settings: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do.
+wind_reseller_bot  |   admin_conv_handler = ConversationHandler(
+wind_reseller_bot  | 2025-06-01 05:16:56,458 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,458 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,459 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:16:56,459 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:16:56,459 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,459 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:56,460 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:16:56,460 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:16:56,462 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:16:56,462 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:16:56,471 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | 2025-06-01 05:16:56,471 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3955, in <module>
+wind_reseller_bot  |     main()
+wind_reseller_bot  |   File "/app/bot.py", line 3951, in main
+wind_reseller_bot  |     asyncio.run(async_main())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+wind_reseller_bot  |     return runner.run(main)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+wind_reseller_bot  |     return self._loop.run_until_complete(task)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+wind_reseller_bot  |     return future.result()
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.shutdown' was never awaited
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.initialize' was never awaited
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:16:58,016 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:58,016 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:58,018 - asyncio - DEBUG - Using selector: EpollSelector
+wind_reseller_bot  | 2025-06-01 05:16:58,019 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:16:58,019 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:16:58,020 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:16:58,020 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:16:58,285 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,285 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:16:58,285 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,285 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:16:58,297 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:16:58,297 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:16:58,306 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,306 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,307 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,307 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,307 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:16:58,307 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:16:58,309 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:16:58,309 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:16:58,309 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,309 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,310 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:16:58,310 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:16:58,310 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,310 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,310 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | 2025-06-01 05:16:58,310 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:16:58,315 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:58,315 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:16:58,316 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | 2025-06-01 05:16:58,316 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | /app/bot.py:3894: PTBUserWarning: If 'per_message=False', 'CallbackQueryHandler' will not be tracked for every message. Read this FAQ entry to learn more about the per_* settings: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do.
+wind_reseller_bot  |   admin_conv_handler = ConversationHandler(
+wind_reseller_bot  | 2025-06-01 05:16:58,319 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,319 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,320 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:16:58,320 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:16:58,320 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,320 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:16:58,320 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:16:58,320 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:16:58,321 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:16:58,321 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:16:58,326 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 2025-06-01 05:16:58,326 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3955, in <module>
+wind_reseller_bot  |     main()
+wind_reseller_bot  |   File "/app/bot.py", line 3951, in main
+wind_reseller_bot  |     asyncio.run(async_main())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+wind_reseller_bot  |     return runner.run(main)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+wind_reseller_bot  |     return self._loop.run_until_complete(task)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+wind_reseller_bot  |     return future.result()
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.shutdown' was never awaited
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.initialize' was never awaited
+wind_reseller_bot  | 2025-06-01 05:17:00,177 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:17:00,177 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:17:00,179 - asyncio - DEBUG - Using selector: EpollSelector
+wind_reseller_bot  | 2025-06-01 05:17:00,180 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:17:00,180 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:17:00,181 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:17:00,181 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:17:00,448 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,448 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:17:00,448 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,448 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:17:00,459 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:17:00,459 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:17:00,471 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,471 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,471 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,471 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,471 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:17:00,471 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:17:00,474 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:17:00,474 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:17:00,474 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,474 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,475 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:17:00,475 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:17:00,475 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,475 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,476 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | 2025-06-01 05:17:00,476 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:17:00,483 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:17:00,483 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:17:00,484 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | 2025-06-01 05:17:00,484 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | /app/bot.py:3894: PTBUserWarning: If 'per_message=False', 'CallbackQueryHandler' will not be tracked for every message. Read this FAQ entry to learn more about the per_* settings: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do.
+wind_reseller_bot  |   admin_conv_handler = ConversationHandler(
+wind_reseller_bot  | 2025-06-01 05:17:00,490 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,490 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,490 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:17:00,490 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:17:00,491 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,491 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:00,491 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:17:00,491 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:17:00,494 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:17:00,494 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:17:00,505 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | 2025-06-01 05:17:00,505 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3955, in <module>
+wind_reseller_bot  |     main()
+wind_reseller_bot  |   File "/app/bot.py", line 3951, in main
+wind_reseller_bot  |     asyncio.run(async_main())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+wind_reseller_bot  |     return runner.run(main)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+wind_reseller_bot  |     return self._loop.run_until_complete(task)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+wind_reseller_bot  |     return future.result()
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.shutdown' was never awaited
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.initialize' was never awaited
+wind_reseller_bot  | 2025-06-01 05:17:02,875 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:17:02,875 - __main__ - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:17:02,877 - asyncio - DEBUG - Using selector: EpollSelector
+wind_reseller_bot  | 2025-06-01 05:17:02,878 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:17:02,878 - __main__ - INFO - Starting async_main...
+wind_reseller_bot  | 2025-06-01 05:17:02,878 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:17:02,878 - __main__ - INFO - BOT_TOKEN is set, creating application...
+wind_reseller_bot  | 2025-06-01 05:17:03,201 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,202 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:17:03,201 - __main__ - INFO - Application created successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,202 - __main__ - INFO - Initializing database...
+wind_reseller_bot  | 2025-06-01 05:17:03,219 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:17:03,219 - db - INFO - Database already initialized
+wind_reseller_bot  | 2025-06-01 05:17:03,227 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,227 - db - INFO - Database migrations applied successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,227 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,227 - __main__ - INFO - Database initialized successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,228 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:17:03,228 - __main__ - INFO - Loading force join settings...
+wind_reseller_bot  | 2025-06-01 05:17:03,230 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:17:03,230 - __main__ - INFO - Force join settings loaded: enabled=False, channels=[]
+wind_reseller_bot  | 2025-06-01 05:17:03,230 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,230 - __main__ - INFO - Force join settings loaded successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,231 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:17:03,231 - __main__ - INFO - Registering command handlers...
+wind_reseller_bot  | 2025-06-01 05:17:03,232 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,232 - __main__ - INFO - Command handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,232 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | 2025-06-01 05:17:03,232 - __main__ - INFO - Setting up conversation handlers...
+wind_reseller_bot  | 2025-06-01 05:17:03,245 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | Successfully imported referral handler
+wind_reseller_bot  | Successfully imported admin_cards handler
+wind_reseller_bot  | Successfully imported card_manager handler
+wind_reseller_bot  | Successfully imported tabulate
+wind_reseller_bot  | Successfully imported db module
+wind_reseller_bot  | Enhanced logging enabled
+wind_reseller_bot  | 2025-06-01 05:17:03,245 - bot - INFO - Fernet encryption initialized
+wind_reseller_bot  | 2025-06-01 05:17:03,246 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | 2025-06-01 05:17:03,246 - __main__ - INFO - Successfully imported process_seat_edit
+wind_reseller_bot  | /app/bot.py:3894: PTBUserWarning: If 'per_message=False', 'CallbackQueryHandler' will not be tracked for every message. Read this FAQ entry to learn more about the per_* settings: https://github.com/python-telegram-bot/python-telegram-bot/wiki/Frequently-Asked-Questions#what-do-the-per_-settings-in-conversationhandler-do.
+wind_reseller_bot  |   admin_conv_handler = ConversationHandler(
+wind_reseller_bot  | 2025-06-01 05:17:03,254 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,254 - __main__ - INFO - Conversation handlers set up successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,254 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:17:03,254 - __main__ - INFO - Adding callback query handler...
+wind_reseller_bot  | 2025-06-01 05:17:03,255 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,255 - __main__ - INFO - All handlers registered successfully
+wind_reseller_bot  | 2025-06-01 05:17:03,255 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:17:03,255 - __main__ - INFO - Starting bot polling...
+wind_reseller_bot  | 2025-06-01 05:17:03,256 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:17:03,256 - __main__ - ERROR - Critical error in async_main: Cannot close a running event loop
+wind_reseller_bot  | 2025-06-01 05:17:03,264 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  | 2025-06-01 05:17:03,264 - __main__ - ERROR - Full traceback: Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1049, in __run
+wind_reseller_bot  |     raise exc
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1038, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.initialize())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1060, in __run
+wind_reseller_bot  |     loop.run_until_complete(self.shutdown())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 667, in run_until_complete
+wind_reseller_bot  |     self._check_running()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 626, in _check_running
+wind_reseller_bot  |     raise RuntimeError('This event loop is already running')
+wind_reseller_bot  | RuntimeError: This event loop is already running
+wind_reseller_bot  | 
+wind_reseller_bot  | During handling of the above exception, another exception occurred:
+wind_reseller_bot  | 
+wind_reseller_bot  | Traceback (most recent call last):
+wind_reseller_bot  |   File "/app/bot.py", line 3955, in <module>
+wind_reseller_bot  |     main()
+wind_reseller_bot  |   File "/app/bot.py", line 3951, in main
+wind_reseller_bot  |     asyncio.run(async_main())
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 195, in run
+wind_reseller_bot  |     return runner.run(main)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/runners.py", line 118, in run
+wind_reseller_bot  |     return self._loop.run_until_complete(task)
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+wind_reseller_bot  |     return future.result()
+wind_reseller_bot  |            ^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/app/bot.py", line 3939, in async_main
+wind_reseller_bot  |     await application.run_polling(allowed_updates=Update.ALL_TYPES)
+wind_reseller_bot  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 838, in run_polling
+wind_reseller_bot  |     return self.__run(
+wind_reseller_bot  |            ^^^^^^^^^^^
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/site-packages/telegram/ext/_application.py", line 1065, in __run
+wind_reseller_bot  |     loop.close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/unix_events.py", line 68, in close
+wind_reseller_bot  |     super().close()
+wind_reseller_bot  |   File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 101, in close
+wind_reseller_bot  |     raise RuntimeError("Cannot close a running event loop")
+wind_reseller_bot  | RuntimeError: Cannot close a running event loop
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.shutdown' was never awaited
+wind_reseller_bot  | sys:1: RuntimeWarning: coroutine 'Application.initialize' was never awaited
+root@wind:~/windbot# 
