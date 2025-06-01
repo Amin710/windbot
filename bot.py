@@ -3949,3 +3949,7 @@ def main() -> None:
     """Start the bot."""
     import asyncio
     asyncio.run(async_main())
+
+
+if __name__ == "__main__":
+    main()
