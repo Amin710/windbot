@@ -105,10 +105,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Environment variables
+load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_URI = os.getenv("DB_URI")
 FERNET_KEY = os.getenv("FERNET_KEY")
 RECEIPT_CHANNEL_ID = os.getenv("RECEIPT_CHANNEL_ID")
+LOG_SELL_CHID = os.getenv("LOG_SELL_CHID")
 CARD_NUMBER = os.getenv("CARD_NUMBER", "")
 
 # Initialize Fernet for encryption/decryption
@@ -454,10 +456,10 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def backup_db(bot, status_message):
-    """Create a database backup using Python and send it to the admin channel."""
-    if not RECEIPT_CHANNEL_ID:
+    """Create a database backup using Python and send it to the sales log channel."""
+    if not LOG_SELL_CHID:
         await status_message.edit_text(
-            "❌ *خطا: RECEIPT_CHANNEL_ID تنظیم نشده است*",
+            "❌ *خطا: LOG_SELL_CHID تنظیم نشده است*",
             parse_mode="Markdown"
         )
         return
@@ -558,7 +560,7 @@ async def backup_db(bot, status_message):
                 )
                 return
             
-            # Send the backup file to the receipt channel
+            # Send the backup file to the sales log channel
             await status_message.edit_text(
                 "📤 *در حال ارسال فایل بکاپ...*",
                 parse_mode="Markdown"
@@ -570,10 +572,10 @@ async def backup_db(bot, status_message):
             try:
                 with open(backup_path, "rb") as backup_file:
                     await bot.send_document(
-                        chat_id=RECEIPT_CHANNEL_ID,
+                        chat_id=LOG_SELL_CHID,
                         document=backup_file,
                         filename=backup_filename,
-                        caption=f"Database Backup - {timestamp}\nSize: {file_size_mb:.2f} MB"
+                        caption=f"📂 *بکاپ دیتابیس* - {timestamp}\n💾 حجم: {file_size_mb:.2f} MB"
                     )
                 
                 # Update status message
