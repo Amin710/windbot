@@ -39,30 +39,30 @@ from typing import Dict, Optional, Union, Tuple, List, Any
 # Import handlers modules with error handling
 try:
     from handlers import referral
-    logger.info("Successfully imported referral handler")
+    print("Successfully imported referral handler")
 except ImportError as e:
-    logger.warning(f"Could not import referral handler: {e}")
+    print(f"Could not import referral handler: {e}")
     referral = None
 
 try:
     from handlers import admin_cards
-    logger.info("Successfully imported admin_cards handler")
+    print("Successfully imported admin_cards handler")
 except ImportError as e:
-    logger.warning(f"Could not import admin_cards handler: {e}")
+    print(f"Could not import admin_cards handler: {e}")
     admin_cards = None
 
 try:
     from handlers import card_manager
-    logger.info("Successfully imported card_manager handler")
+    print("Successfully imported card_manager handler")
 except ImportError as e:
-    logger.warning(f"Could not import card_manager handler: {e}")
+    print(f"Could not import card_manager handler: {e}")
     card_manager = None
 
 try:
     from tabulate import tabulate
-    logger.info("Successfully imported tabulate")
+    print("Successfully imported tabulate")
 except ImportError as e:
-    logger.warning(f"Could not import tabulate: {e}")
+    print(f"Could not import tabulate: {e}")
     # Define a dummy tabulate function
     def tabulate(data, headers=None, tablefmt="simple"):
         return str(data)
@@ -85,12 +85,12 @@ from telegram.ext import (
 # Import database module with error handling
 try:
     import db
-    logger.info("Successfully imported db module")
+    print("Successfully imported db module")
 except ImportError as e:
-    logger.error(f"Could not import db module: {e}")
+    print(f"Could not import db module: {e}")
     raise SystemExit("Database module is required for the bot to function")
 except Exception as e:
-    logger.error(f"Error initializing db module: {e}")
+    print(f"Error initializing db module: {e}")
     raise SystemExit(f"Database initialization failed: {e}")
 
 # Import enhanced debug logger
