@@ -120,7 +120,7 @@ async def show_cards_list(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         )
 
 @log_function_call
-async def add_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def add_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Prompt the user to add a new card"""
     query = update.callback_query
     await query.answer()
@@ -137,7 +137,6 @@ async def add_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     # Set state to wait for card info
     context.user_data['awaiting_card_info'] = True
-    return WAITING_FOR_CARD_INFO
 
 @log_function_call
 async def process_add_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -284,7 +283,7 @@ async def delete_card(update: Update, context: ContextTypes.DEFAULT_TYPE, card_i
     await show_cards_list(update, context)
 
 @log_function_call
-async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, card_id: int) -> int:
+async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Prompt for editing a card"""
     query = update.callback_query
     await query.answer()
@@ -292,6 +291,7 @@ async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, c
     try:
         with db.get_conn() as conn:
             with conn.cursor() as cur:
+                card_id = int(query.data.split(':')[2])
                 cur.execute(
                     "SELECT title, card_number FROM cards WHERE id = %s AND active = TRUE",
                     (card_id,)
@@ -307,7 +307,7 @@ async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, c
                             InlineKeyboardButton("🔙 بازگشت", callback_data="admin:cards")
                         ]])
                     )
-                    return -1
+                    return
                 
                 title, number = result
                 
@@ -332,10 +332,8 @@ async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, c
                 context.user_data['edit_card_title'] = title 
                 context.user_data['edit_card_number'] = number
                 
-                return WAITING_FOR_CARD_EDIT
-                
     except Exception as e:
-        logger.error(f"Error fetching card {card_id} for edit: {e}")
+        logger.error(f"Error fetching card for edit: {e}")
         await query.edit_message_text(
             "❌ *خطا در دریافت اطلاعات کارت*\n\n"
             f"خطای سیستمی: {str(e)}",
@@ -344,7 +342,6 @@ async def edit_card_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, c
                 InlineKeyboardButton("🔙 بازگشت", callback_data="admin:cards")
             ]])
         )
-        return -1
 
 @log_function_call
 async def process_edit_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

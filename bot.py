@@ -337,7 +337,7 @@ def get_main_menu_keyboard():
             InlineKeyboardButton("📣 کسب اعتبار  ", callback_data="menu:ref")
         ],
         [
-            InlineKeyboardButton("💬 پشتیبانی", callback_data="support")
+            InlineKeyboardButton("💬 پشتیبانی", url="https://t.me/AcoountYarSup")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -1245,7 +1245,8 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     # Send confirmation to user
     await update.message.reply_text(
         f"با تشکر، سفارش شما ثبت شد و در انتظار تایید می‌باشد ✅\n\n"
-        f"فرایند تایید ممکنه تا چند ساعت زمان ببره لطفا از پیام به پشتیبانی خودداری کنید"
+        f"فرایند تایید ممکنه تا چند ساعت زمان ببره لطفا از پیام مکرر به پشتیبانی خودداری کنید\n\n"
+        f"💬 پشتیبانی: @AcoountYarSup"
     )
     
     # Forward receipt to admin channel
@@ -3322,7 +3323,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 await context.bot.send_message(
                     chat_id=tg_id,
                     text=f"❌ *سفارش شماره #{order_id} رد شد*\n\n"
-                         f"✏️ لطفا با پشتیبانی تماس بگیرید یا مجددا تلاش کنید.",
+                         f"✏️ لطفا با پشتیبانی تماس بگیرید یا مجددا تلاش کنید.\n\n"
+                         f"💬 پشتیبانی: @AcoountYarSup",
                     parse_mode="Markdown"
                 )
             except Exception as e:
@@ -3462,7 +3464,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 chat_id=user.id,
                 text="❌ *خطا در تولید کد 2FA*\n\n"
                      "متأسفانه در تولید کد خطایی رخ داده است. "
-                     "لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.",
+                     "لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n"
+                     "💬 پشتیبانی: @AcoountYarSup",
                 parse_mode="Markdown"
             )
     
@@ -3534,7 +3537,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         try:
             card_id = int(data.split(":")[2])
-            await admin_cards.edit_card_prompt(update, context, card_id)
+            await admin_cards.edit_card_prompt(update, context)
         except (ValueError, IndexError) as e:
             logger.error(f"Invalid card edit ID format: {e}")
             await query.answer("خطا در ویرایش کارت", show_alert=True)
@@ -3567,13 +3570,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     
                     # Check if 2FA is permanently disabled
                     if twofa_disabled:
-                        await query.answer("شما کد رو دریافت کردید و در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
+                        await query.answer("شما کد رو دریافت کردید و در صورت مشکل با پشتیبانی @AcoountYarSup تماس بگیرید.", show_alert=True)
                         # Also send as regular message
                         await context.bot.send_message(
                             chat_id=user.id,
                             text="⏰ *مهلت استفاده از کد 2FA به پایان رسیده*\n\n"
                                  "شما قبلاً کد 2FA خود را دریافت کرده‌اید. اگر مشکلی دارید، "
-                                 "لطفاً با پشتیبانی تماس بگیرید.",
+                                 "لطفاً با پشتیبانی تماس بگیرید.\n\n"
+                                 "💬 پشتیبانی: @AcoountYarSup",
                             parse_mode="Markdown"
                         )
                         return
@@ -3829,7 +3833,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         if hasattr(update, "effective_chat") and update.effective_chat:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text="\u274c خطایی در سیستم رخ داده است. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید."
+                text="❌ خطایی در سیستم رخ داده است. لطفاً مجدداً تلاش کنید یا با پشتیبانی تماس بگیرید.\n\n💬 پشتیبانی: @AcoountYarSup"
             )
     except Exception as inform_error:
         logger.error(f"Failed to inform user about error: {inform_error}")
