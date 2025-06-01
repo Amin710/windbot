@@ -183,7 +183,8 @@ def apply_migrations():
                 cur.execute("""
                 ALTER TABLE orders 
                 ADD COLUMN IF NOT EXISTS twofa_count SMALLINT DEFAULT 0,
-                ADD COLUMN IF NOT EXISTS twofa_last TIMESTAMPTZ;
+                ADD COLUMN IF NOT EXISTS twofa_last TIMESTAMPTZ,
+                ADD COLUMN IF NOT EXISTS twofa_disabled BOOLEAN DEFAULT FALSE;
                 """)
                 
                 # Create index for better performance on twofa queries
@@ -194,6 +195,7 @@ def apply_migrations():
                 # Update existing orders to have default twofa_count values
                 cur.execute("""
                 UPDATE orders SET twofa_count = 0 WHERE twofa_count IS NULL;
+                UPDATE orders SET twofa_disabled = FALSE WHERE twofa_disabled IS NULL;
                 """)
                 
                 # Add referral system columns

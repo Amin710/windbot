@@ -3126,14 +3126,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Calculate remaining seconds until code expires
-                    remaining_seconds = 30 - (int(time.time()) % 30)
+                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds)
+                    remaining_seconds = 60 - (int(time.time()) % 60)
                     
                     # Create appropriate message based on attempt count
                     if new_count == 1:
                         message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
                     elif new_count == 2:
                         message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
+                    else:
+                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است"
                     
                     # Answer callback query first
                     await query.answer()
@@ -3232,26 +3234,35 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             with db.get_conn() as conn:
                 with conn.cursor() as cur:
                     # Get current 2FA usage info
-                    cur.execute("SELECT twofa_count, twofa_last FROM orders WHERE id = %s", (order_id,))
+                    cur.execute("SELECT twofa_count, twofa_last, twofa_disabled FROM orders WHERE id = %s", (order_id,))
                     result = cur.fetchone()
                     
                     if not result:
                         await query.answer("خطا: سفارش یافت نشد", show_alert=True)
                         return
                     
-                    twofa_count, twofa_last = result
+                    twofa_count, twofa_last, twofa_disabled = result
                     now = datetime.now(timezone.utc)
                     
+                    # Check if 2FA is permanently disabled
+                    if twofa_disabled:
+                        await query.answer("شما کد رو دریافت کردید و در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
+                        return
+                    
+                    # Check if we need to disable 2FA due to timeout
+                    if twofa_count > 0 and twofa_last and (now - twofa_last).total_seconds() >= 120:
+                        # 120 seconds passed since first attempt - disable permanently
+                        cur.execute("UPDATE orders SET twofa_disabled = TRUE WHERE id = %s", (order_id,))
+                        conn.commit()
+                        await query.answer("مهلت دریافت کد به پایان رسیده است. در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
+                        return
+                    
                     # Check retry limits
-                    if twofa_count == 0:
-                        # First time - allow
-                        pass
-                    elif twofa_count == 1 and twofa_last and (now - twofa_last).total_seconds() < 120:
-                        # Second time within 120 seconds - allow
-                        pass
-                    else:
-                        # Over limit or expired
-                        await query.answer("مهلت تمام شده یا قبلاً دوبار استفاده کرده‌اید.", show_alert=True)
+                    if twofa_count >= 2:
+                        # Already used 2 times - disable permanently
+                        cur.execute("UPDATE orders SET twofa_disabled = TRUE WHERE id = %s", (order_id,))
+                        conn.commit()
+                        await query.answer("شما کد رو دریافت کردید و در صورت مشکل با پشتیبانی تماس بگیرید.", show_alert=True)
                         return
                     
                     # Get seat ID and secret for this order
@@ -3282,15 +3293,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Calculate remaining seconds until code expires
-                    remaining_seconds = 30 - (int(time.time()) % 30)
+                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds)
+                    remaining_seconds = 60 - (int(time.time()) % 60)
                     
                     # Update usage count and timestamp
                     new_count = twofa_count + 1
-                    cur.execute(
-                        "UPDATE orders SET twofa_count = %s, twofa_last = %s WHERE id = %s",
-                        (new_count, now, order_id)
-                    )
+                    
+                    # If this is the second code, disable 2FA permanently
+                    if new_count >= 2:
+                        cur.execute(
+                            "UPDATE orders SET twofa_count = %s, twofa_last = %s, twofa_disabled = TRUE WHERE id = %s",
+                            (new_count, now, order_id)
+                        )
+                    else:
+                        cur.execute(
+                            "UPDATE orders SET twofa_count = %s, twofa_last = %s WHERE id = %s",
+                            (new_count, now, order_id)
+                        )
                     conn.commit()
                     
                     # Create appropriate message based on attempt count
@@ -3298,6 +3317,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
                     elif new_count == 2:
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
+                    else:
+                        alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
                     
                     # Show alert with code and TTL
                     await query.answer(alert_message, show_alert=True)
@@ -3330,7 +3351,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 f"2️⃣ وارد برنامه شوید و روی Login کلیک کنید\n"
                 f"3️⃣ ایمیل و رمز عبور خود را وارد کنید\n"
                 f"4️⃣ سپس روی دکمه زیر برای دریافت کد دومرحله‌ای بزنید\n\n"
-                f"⚠️ *توجه:* هر کد فقط 30 ثانیه اعتبار دارد و حداکثر 2 بار می‌توانید کد دریافت کنید."
+                f"⚠️ *توجه:* هر کد 60 ثانیه اعتبار دارد و حداکثر 2 بار می‌توانید کد دریافت کنید."
             )
             
             await context.bot.send_message(
