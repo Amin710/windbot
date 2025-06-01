@@ -3779,8 +3779,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         logger.error(f"Failed to inform user about error: {inform_error}")
 
 
-def main() -> None:
-    """Start the bot."""
+async def async_main() -> None:
+    """Async main function to properly handle event loop."""
     # Create the Application
     if not BOT_TOKEN:
         logger.error("BOT_TOKEN is not set in environment variables")
@@ -3792,8 +3792,7 @@ def main() -> None:
     db.init_db()
     
     # Load force join settings
-    import asyncio
-    asyncio.run(load_force_join_settings())
+    await load_force_join_settings()
     
     # Register handlers
     application.add_handler(CommandHandler("start", start))
@@ -3852,8 +3851,10 @@ def main() -> None:
     application.add_error_handler(error_handler)
 
     # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    await application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
-if __name__ == "__main__":
-    main()
+def main() -> None:
+    """Start the bot."""
+    import asyncio
+    asyncio.run(async_main())
