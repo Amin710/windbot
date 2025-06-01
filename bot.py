@@ -3126,28 +3126,31 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds)
-                    remaining_seconds = 60 - (int(time.time()) % 60)
+                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds + 30 sec buffer)
+                    remaining_seconds = (60 - (int(time.time()) % 60)) + 30
                     
                     # Create appropriate message based on attempt count
                     if new_count == 1:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است."
+                        code_message = f"📲 **کد 2FA شما:** `{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
                     elif new_count == 2:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است (دفعهٔ دوم)."
+                        code_message = f"📲 **کد 2FA شما:** `{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد (دفعهٔ دوم)"
                     else:
-                        message_text = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد به مدت {remaining_seconds} ثانیه معتبر است"
+                        code_message = f"📲 **کد 2FA شما:** `{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
                     
                     # Answer callback query first
                     await query.answer()
                     
-                    # Send 2FA code as a separate message
+                    # Send code as a separate message
                     await context.bot.send_message(
                         chat_id=user.id,
-                        text=message_text,
+                        text=code_message,
                         parse_mode="Markdown"
                     )
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
+            # Log detailed error information using the enhanced logger
+            if ENHANCED_LOGGING:
+                log_exception(e, {"order_id": order_id, "callback_data": data})
             await query.answer("خطا در تولید کد", show_alert=True)
             
     # Handle seat operations
@@ -3293,8 +3296,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     totp = pyotp.TOTP(secret)
                     code = totp.now()
                     
-                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds)
-                    remaining_seconds = 60 - (int(time.time()) % 60)
+                    # Calculate remaining seconds until code expires (codes are valid for 60 seconds + 30 sec buffer)
+                    remaining_seconds = (60 - (int(time.time()) % 60)) + 30
                     
                     # Update usage count and timestamp
                     new_count = twofa_count + 1
@@ -3315,13 +3318,23 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                     # Create appropriate message based on attempt count
                     if new_count == 1:
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
+                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
                     elif new_count == 2:
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه (دفعهٔ دوم)"
+                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد (دفعهٔ دوم)\n\n⚠️ *توجه:* این آخرین باری است که می‌توانید کد دریافت کنید."
                     else:
                         alert_message = f"📲 کد 2FA شما: {code}\n\n⏰ اعتبار {remaining_seconds} ثانیه"
+                        full_message = f"📲 *کد 2FA شما:*\n\n`{code}`\n\n⏰ این کد {remaining_seconds} ثانیه اعتبار دارد"
                     
                     # Show alert with code and TTL
                     await query.answer(alert_message, show_alert=True)
+                    
+                    # Also send the code as a separate message for easier copying
+                    await context.bot.send_message(
+                        chat_id=user.id,
+                        text=full_message,
+                        parse_mode="Markdown"
+                    )
                     
         except Exception as e:
             logger.error(f"Error generating TOTP code: {e}")
