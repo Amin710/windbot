@@ -1075,14 +1075,13 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
             # Get order details and card info
             with db.get_conn() as conn:
                 with conn.cursor() as cur:
-                    # Get order amount and transaction reference
+                    # Get order amount
                     cur.execute(
-                        "SELECT amount, transaction_ref FROM orders WHERE id = %s",
+                        "SELECT amount FROM orders WHERE id = %s",
                         (pending_order_id,)
                     )
                     order_result = cur.fetchone()
                     amount = order_result[0] if order_result else 0
-                    transaction_ref = order_result[1] if order_result and order_result[1] else "نامشخص"
                     
                     # Get card info (first active card if no specific one is set)
                     cur.execute(
@@ -1094,7 +1093,7 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
                         card_holder_name = card_result[1]
                     else:
                         # Fallback to environment variable
-                        card_number = CARD_NUMBER
+                        card_number = CARD_NUMBER if CARD_NUMBER else "نامشخص"
                         card_holder_name = "نامشخص"
             
             # Format user display
@@ -1104,7 +1103,7 @@ async def handle_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYP
             caption = (
                 f"🧾 رسید جدید پرداخت کارت به کارت:\n\n"
                 f"👤 کاربر: {user_display}\n"
-                f"🔢 شماره تراکنش: {transaction_ref}\n"
+                f"🔢 شماره تراکنش: #{pending_order_id}\n"
                 f"💰 مبلغ: {amount:,} تومان\n\n"
                 f"💳 کارت مقصد:\n"
                 f"🔢 {card_number}\n"
