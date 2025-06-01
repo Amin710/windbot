@@ -2911,8 +2911,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         else:
             # User is still not a member, show error message
             await query.answer("❌ شما هنوز تو کانال مورد نظر عضو نشدید", show_alert=True)
-            # Show join message again
-            await send_join_channels_message(update, context, missing_channels)
+            # Don't edit the message since content would be the same
         
     # Seat management callbacks
     elif data.startswith("seat:"):
